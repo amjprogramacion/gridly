@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { nextTick } from 'vue'
-import { AUTOSAVE_KEY, startAutosave, state, defaultRoom, add, edit, editRoom, toggleWall, duplicate, remove, checkpoint, undo, redo, moveSelected, rotateSelected, resizeSelectedFromFace, selected, load, projectJSON } from '../src/editor.ts'
+import { editProjectName, DEFAULT_PROJECT_NAME, AUTOSAVE_KEY, startAutosave, state, defaultRoom, add, edit, editRoom, toggleWall, duplicate, remove, checkpoint, undo, redo, moveSelected, rotateSelected, resizeSelectedFromFace, selected, load, projectJSON } from '../src/editor.ts'
 state.collisions=false
 
 const values=new Map<string,string>()
@@ -9,6 +9,11 @@ const storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,v
 const saved=()=>JSON.parse(values.get(AUTOSAVE_KEY)!)
 const autosave=startAutosave(()=>storage)
 await nextTick();assert.equal(writes,0)
+editProjectName('  Casa nueva  ');await nextTick();assert.equal(saved().projectName,'Casa nueva')
+undo();await nextTick();assert.equal(state.projectName,DEFAULT_PROJECT_NAME)
+redo();await nextTick();assert.equal(state.projectName,'Casa nueva')
+editProjectName(' ');assert.equal(state.projectName,'Casa nueva')
+editProjectName('x'.repeat(121));assert.equal(state.projectName,'Casa nueva')
 add();await nextTick();assert.equal(saved().objects.length,1)
 edit('name','Mesa');edit('color','#123456');await nextTick()
 assert.equal(saved().objects[0].name,'Mesa');assert.equal(saved().objects[0].color,'#123456')
@@ -28,15 +33,17 @@ state.selected='room';state.snap=false;state.step=10;state.error='Aviso'
 await nextTick();assert.equal(writes,beforeSelection)
 const project={version:4,units:'mm',room:{...defaultRoom(),width:6400},objects:[]}
 await load(new File([JSON.stringify(project)],'project.json'));await nextTick()
-assert.equal(saved().room.width,6400);assert.equal(saved().version,6)
+assert.equal(saved().projectName,DEFAULT_PROJECT_NAME);assert.equal(saved().room.width,6400);assert.equal(saved().version,6)
 const beforeInvalid=writes
 await load(new File(['{}'],'invalid.json'));await nextTick();assert.equal(writes,beforeInvalid)
+await load(new File([JSON.stringify({...project,projectName:'Piso luminoso'})],'named.json'));await nextTick();assert.equal(saved().projectName,'Piso luminoso')
+const beforeBadName=projectJSON();await load(new File([JSON.stringify({...project,projectName:42})],'bad-name.json'));assert.equal(projectJSON(),beforeBadName)
 // El cierre guarda incluso si aún no se ha ejecutado el watcher.
 editRoom('depth','4200');autosave.flush();assert.equal(saved().room.depth,4200)
 autosave.stop()
 state.room=defaultRoom();state.objects=[]
 const restored=startAutosave(()=>storage)
-assert.equal(state.room!.width,6400);assert.equal(state.room!.depth,4200)
+assert.equal(state.projectName,'Piso luminoso');assert.equal(state.room!.width,6400);assert.equal(state.room!.depth,4200)
 await nextTick();assert.equal(state.autosaveError,'')
 restored.stop()
 

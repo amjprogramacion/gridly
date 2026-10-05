@@ -4,7 +4,7 @@ Estado al 5 de octubre de 2026. Este archivo y `AGENTS.md` son la memoria portá
 
 ## Objetivo y estado
 
-Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funciona íntegramente en el navegador, con interfaz oscura. La interfaz indica MVP 08. No tiene backend, cuentas ni sincronización. Dispone de autoguardado local de la última escena en el navegador.
+Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funciona íntegramente en el navegador, con interfaz oscura. No tiene backend, cuentas ni sincronización. Dispone de autoguardado local de la última escena en el navegador.
 
 ## Comportamiento acordado
 
@@ -24,6 +24,7 @@ Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funcion
 El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 
 - La selección múltiple muestra el contorno cian de cada elemento seleccionado, tanto desde la lista como desde el visor. Los contornos adicionales comparten la proyección de `selectionOutline.ts`, se actualizan con la escena y se ocultan durante el movimiento de cámara igual que el principal. Solo el elemento activo muestra cotas y controles; deseleccionar una pieza retira su contorno. Se verificaron en navegador Ctrl, Mayús, deselección, ocultación/reaparición al orbitar, arrastre de elevación y agrupación/deshacer. Tras agrupar, se muestra una única envolvente común.
+- La cabecera mide 56 px en escritorio, sin etiqueta MVP. El nombre del proyecto (inicialmente «Mi espacio») es un botón que se convierte en campo y botón cuadrado con SVG de guardar. Guardar o Enter confirma el nombre recortando espacios; Escape cancela. El nombre admite hasta 120 caracteres, se incluye en historial, autoguardado y el campo opcional `projectName` del JSON versión 6. Los archivos anteriores usan «Mi espacio». «Abrir» conserva su comportamiento; «Descargar proyecto» exporta con el nombre del proyecto como archivo. En pantallas estrechas la cabecera se adapta a dos filas.
 - La barra comienza con deshacer y rehacer; no muestra los botones de modo mover/rotar. Las transformaciones se realizan desde los controles sobre las piezas. Se conservan los atajos W/R existentes. El selector de paso de Snap se elimina; la casilla Snap mantiene el ajuste de movimiento y tamaño en 50 mm y de giro en 15°.
 - Los paneles de cierre de las esquinas de paredes norte/sur solo se dibujan cuando su pared lateral adyacente también es visible. Al ocultarse o desactivarse esa pared, el extremo visible termina al ras del interior, sin el sobrante del grosor. Es un recorte exclusivamente visual: medidas, huecos y colisiones conservan su geometría.
 - El visor mantiene la cuadrícula del suelo sin ejes de colores en el origen.

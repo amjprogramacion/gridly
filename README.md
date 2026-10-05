@@ -72,7 +72,9 @@ El tamaño del grupo cambia proporcionalmente en los tres ejes; conserva la form
 
 ## Guardar y continuar desde otro equipo
 
-Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 6 y admite archivos de versiones 1–6.
+Pulsa el nombre de la barra superior para editarlo y guarda con el icono de disquete (o Enter). El nombre se conserva con el autoguardado y el JSON.
+
+Usa **Descargar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 6 y admite archivos de versiones 1–6.
 
 La habitación y sus objetos se autoguardan con cada modificación en el almacenamiento local del navegador y se recuperan al recargar o volver a abrir Gridly en la misma dirección. Se incluyen arrastres, deshacer/rehacer y proyectos importados. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
 
