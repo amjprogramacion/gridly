@@ -6,6 +6,7 @@ Antes de modificar el proyecto, lee `README.md` y `docs/PROJECT_CONTEXT.md`. Est
 
 - Comunícate en español, con explicaciones breves y concretas.
 - El usuario prefiere que implementes las peticiones y compruebes el resultado sin pedir confirmación para cambios locales reversibles.
+- Nunca hagas commits. El usuario los realiza; proporciona únicamente un título en inglés cuando lo solicite. Usa los prefijos `feat` (funcionalidades), `fix` (correcciones), `refactor`, `perf` (rendimiento), `docs` (documentación) o `chore` (mantenimiento), según el cambio. `VERSION UP` se excluye del changelog y los demás mensajes se agrupan como Other.
 - Mantén las preferencias de interacción descritas en el contexto. No sustituyas controles ni cambies convenciones geométricas incidentalmente.
 - Actualiza el contexto cuando cambie una decisión importante, el comportamiento o una limitación conocida. Describe el estado final, no el historial de la conversación.
 

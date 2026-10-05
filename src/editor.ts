@@ -1,4 +1,4 @@
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
 import { fitRotation } from './rotationFit.ts'
 import { normalizeAngle } from './geometry.ts'
@@ -10,7 +10,7 @@ export interface Box { id:string; name:string; type?:ObjectKind; wall?:WallSide;
 export interface Room { width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
 export const labels:Record<ObjectKind,string>={box:'Prisma',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga'}
 export const defaultRoom=():Room=>({width:4000,depth:3500,height:2500,thickness:120,walls:{north:true,south:true,east:true,west:true}})
-export const state=reactive({objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',snap:true,wallSnap:true,step:50,error:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
+export const state=reactive({objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
 export const selected=computed(()=>state.objects.find(o=>o.id===state.selected))
 export const wallContacts=computed(()=>selected.value?touchingWalls(selected.value,state.room,state.objects):[])
 export function snapSelected(axes:Axis[]=['x','y','z']){const o=selected.value;if(!o||isOpening(o))return;const {position}=snapPosition(o,state.room,state.objects,o,{enabled:state.snap,walls:state.wallSnap,step:state.step,axes,grid:false});applyMovement(o,position)}
@@ -84,10 +84,46 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  const {position}=snapPosition(o,state.room,state.objects,{x,y,z},{enabled:state.snap,walls:state.wallSnap,step:state.step,axes})
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);o.offset=(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2;o.y=position.y;normalizeOpening(o,state.room)}else applyMovement(o,position)
 }
-export function save(){const url=URL.createObjectURL(new Blob([JSON.stringify({version:4,units:'mm',room:state.room,objects:state.objects},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='gridly.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-export async function load(file:File){try{
- const data=JSON.parse(await file.text());if(![1,2,3,4].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
+export function projectJSON(){return JSON.stringify({version:4,units:'mm',room:state.room,objects:state.objects})}
+export function save(){const url=URL.createObjectURL(new Blob([JSON.stringify(JSON.parse(projectJSON()),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='gridly.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function parseProject(value:string):{room:Room|null;objects:Box[]}{
+ const data=JSON.parse(value);if(![1,2,3,4].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
  const ids=new Set(['room']);for(const o of data.objects){if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'])if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'])if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
- if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsWall(o,room)))throw Error('collision')}checkpoint();state.objects=data.objects;state.room=room;state.selected=room?'room':'';state.error=''
+ if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsWall(o,room)))throw Error('collision')}
+ return {room,objects:data.objects}
+}
+export async function load(file:File){try{
+ const {room,objects}=parseProject(await file.text());checkpoint();state.objects=objects;state.room=room;state.selected=room?'room':'';state.error=''
  }catch(error){state.error=error instanceof Error&&error.message==='collision'?'El proyecto contiene objetos que atraviesan paredes. Corrige sus posiciones antes de abrirlo.':'No se pudo abrir el archivo. Usa un proyecto JSON de Gridly válido.'}}
+
+
+export const AUTOSAVE_KEY='gridly.autosave'
+type ProjectStorage=Pick<Storage,'getItem'|'setItem'>
+// Vue agrupa los cambios de una operación para guardar una escena completa,
+// también durante arrastres. pagehide fuerza el último cambio antes de salir.
+export function startAutosave(getStorage:()=>ProjectStorage){
+ try{
+  const saved=getStorage().getItem(AUTOSAVE_KEY)
+  if(saved!==null){
+   const {room,objects}=parseProject(saved)
+   state.room=room;state.objects=objects;state.selected=room?'room':''
+  }
+  state.autosaveError=''
+ }catch{
+  state.autosaveError='No se pudo recuperar el autoguardado local. Puedes abrir un proyecto JSON guardado.'
+ }
+ let savedJSON=projectJSON()
+ function flush(){
+  const value=projectJSON()
+  if(value===savedJSON)return
+  try{getStorage().setItem(AUTOSAVE_KEY,value);savedJSON=value;state.autosaveError=''}
+  catch{state.autosaveError='No se pudo autoguardar en este navegador. Usa Guardar proyecto para conservar los cambios.'}
+ }
+ const stop=watch(projectJSON,flush)
+ return {flush,stop}
+}
+if(typeof window!=='undefined'){
+ const autosave=startAutosave(()=>window.localStorage)
+ window.addEventListener('pagehide',autosave.flush)
+}

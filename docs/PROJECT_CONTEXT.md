@@ -4,7 +4,7 @@ Estado al 5 de octubre de 2026. Este archivo y `AGENTS.md` son la memoria portá
 
 ## Objetivo y estado
 
-Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funciona íntegramente en el navegador, con interfaz oscura. La interfaz indica MVP 08. No tiene backend, cuentas ni sincronización. El siguiente paso solicitado es una primera subida a GitHub para continuar desde otro dispositivo; aún no se ha proporcionado URL remota en la conversación.
+Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funciona íntegramente en el navegador, con interfaz oscura. La interfaz indica MVP 08. No tiene backend, cuentas ni sincronización. Dispone de autoguardado local de la última escena en el navegador.
 
 ## Comportamiento acordado
 
@@ -36,11 +36,12 @@ El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 - `Viewport.vue` mantiene grupos de Three.js estables cuando cambian las dimensiones, reconstruyendo solo sus hijos. Esto evita interrumpir un arrastre mientras el tamaño se adapta.
 - `useObjectControls.ts` proyecta el overlay cada frame y usa captura de puntero. Desactiva OrbitControls mientras se manipula un objeto. Queda código de TransformControls en el visor, pero su helper está oculto y el control desactivado; la interacción vigente es el overlay.
 - `rotationFit.ts` conserva las dimensiones de referencia durante la operación y adapta hasta un mínimo de 0,001 mm. Las medidas manuales tienen mínimo de 1 mm.
+- Cada cambio de habitación u objetos se autoguarda, incluidos los arrastres, deshacer/rehacer e importaciones. Vue agrupa los cambios de una misma operación y `pagehide` fuerza los pendientes al salir. La recuperación inicial usa la misma validación que Abrir, sin crear un checkpoint. Un autoguardado inválido se conserva hasta que se modifique la escena y se muestra un aviso; si falla el almacenamiento, la edición continúa y el aviso indica guardar JSON.
 - Exportación JSON versión 4, `units: "mm"`, habitación y objetos. Importación de versiones 1, 2, 3 y 4, con validación y rechazo de proyectos que atraviesan paredes.
 
 ## Limitaciones conocidas
 
-- No hay autoguardado: el proyecto de habitación se conserva exportando JSON. Clonar el código no recupera una escena no guardada.
+- El autoguardado conserva la última escena en `localStorage` bajo `gridly.autosave`, por navegador y origen (dirección/puerto). No sincroniza entre equipos ni conserva el historial, la cámara o las preferencias de interacción. Borrar los datos del navegador borra esta copia; el JSON sigue siendo el medio de traslado y copia manual.
 - No hay techo de colisión: un objeto puede pasar por encima de las paredes.
 - No hay colisiones entre objetos libres, agrupación, STL, paredes irregulares ni apertura animada de puertas.
 - Las colisiones usan envolventes mundiales conservadoras: pueden limitar antes de tiempo en esquinas con piezas giradas.
@@ -50,9 +51,9 @@ El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 
 ## Validación y continuación
 
-`npm test` ejecuta las siete suites: habitación, construcción, snap, colisiones, rotación, giro adaptable y redimensionado desde caras. `npm run build` comprueba TypeScript y compila.
+`npm test` ejecuta las ocho suites: habitación, construcción, snap, colisiones, rotación, giro adaptable, redimensionado desde caras y autoguardado. La suite de autoguardado cubre modificaciones, recuperación, versiones 1–4, datos inválidos, cierre y fallos de almacenamiento. `npm run build` comprueba TypeScript y compila.
 
-El último cambio visual coloca los iconos en las caras. Se comprobó visualmente y se probó el giro Y desde la cara superior y su deshacer. Al preparar el repositorio se actualizaron README, AGENTS y este contexto, se añadió el ejecutor portátil de npm test y se declaró Node 24. npm test pasó las siete suites y npm run build terminó correctamente con el aviso conocido del tamaño del bundle.
+Los iconos de giro mantienen su ubicación en las caras y su comportamiento acordado. El autoguardado se comprobó en el navegador modificando la habitación, el nombre y la anchura de un prisma, y verificando su recuperación al recargar. Con Node 24 y `npm ci`, las ocho suites pasaron y `npm run build` terminó correctamente con el aviso conocido del tamaño del bundle.
 
 En el equipo nuevo: leer estos archivos, ejecutar `npm ci`, `npm test`, `npm run build` y `npm run dev`. Retomar desde la siguiente petición del usuario; no hay otra funcionalidad pendiente autorizada ni una migración que ejecutar.
 

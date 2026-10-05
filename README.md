@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las siete suites del modelo
+npm test        # Ejecutar las ocho suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -58,7 +58,9 @@ Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y l
 
 Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 4 y admite archivos de versiones 1–4.
 
-**No hay autoguardado ni sincronización de escenas.** Subir el código a GitHub no guarda una habitación que solo esté abierta en el navegador. Conserva también su JSON si quieres trasladarla.
+La habitación y sus objetos se autoguardan con cada modificación en el almacenamiento local del navegador y se recuperan al recargar o volver a abrir Gridly en la misma dirección. Se incluyen arrastres, deshacer/rehacer y proyectos importados. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
+
+El autoguardado conserva la última escena; no conserva el historial de deshacer ni sincroniza entre dispositivos o navegadores. Subir el código a GitHub no transfiere esa escena. Usa el JSON para trasladarla y conserva una copia si borras los datos del navegador.
 
 Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea [AGENTS.md](AGENTS.md) y [el contexto del proyecto](docs/PROJECT_CONTEXT.md). Ambos archivos están versionados y recogen las convenciones, preferencias y estado actual.
 
