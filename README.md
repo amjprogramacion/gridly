@@ -51,7 +51,7 @@ Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. El control de
 
 Los controles de giro son flechas curvas de doble punta, sin recuadro, orientadas según su plano de rotación. X aparece sobre un extremo superior, Z sobre el centro del borde superior y Y junto a la esquina cercana de la base. Las flechas son grises y muestran el color del eje al pasar el cursor; sus curvas mantienen la orientación de su plano al orbitar. Arrastra siguiendo la dirección del aro para girar. Durante una misma operación, la pieza reduce su tamaño si lo necesita y lo recupera cuando vuelve a caber, hasta las medidas iniciales de esa operación.
 
-Con Snap activo, los arrastres usan el paso seleccionado y los giros pasos de 15°. El snap a paredes utiliza un umbral de 60 mm y tiene prioridad sobre la cuadrícula. La cuadrícula visible tiene divisiones de 500 mm. Los cambios numéricos de posición aplican snap a superficies al confirmar; las cotas numéricas no se redondean a la cuadrícula.
+Con Snap activo, los arrastres usan un paso fijo de 50 mm y los giros pasos de 15°. El snap a paredes utiliza un umbral de 60 mm y tiene prioridad sobre la cuadrícula. La cuadrícula visible tiene divisiones de 500 mm. Los cambios numéricos de posición aplican snap a superficies al confirmar; las cotas numéricas no se redondean a la cuadrícula.
 
 | Acción | Atajo |
 | --- | --- |
