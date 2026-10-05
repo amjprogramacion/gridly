@@ -1,0 +1,30 @@
+{
+  "name": "gridly",
+  "version": "1.0.0",
+  "description": "Editor 3D de habitaciones con elementos constructivos, medidas editables y controles interactivos.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node scripts/test.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "three": "^0.186.1",
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.2",
+    "vue-tsc": "^3.3.12"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
