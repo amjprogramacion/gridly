@@ -25,6 +25,7 @@ El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 
 - La selección múltiple muestra el contorno cian de cada elemento seleccionado, tanto desde la lista como desde el visor. Los contornos adicionales comparten la proyección de `selectionOutline.ts`, se actualizan con la escena y se ocultan durante el movimiento de cámara igual que el principal. Solo el elemento activo muestra cotas y controles; deseleccionar una pieza retira su contorno. Se verificaron en navegador Ctrl, Mayús, deselección, ocultación/reaparición al orbitar, arrastre de elevación y agrupación/deshacer. Tras agrupar, se muestra una única envolvente común.
 - La barra comienza con deshacer y rehacer; no muestra los botones de modo mover/rotar. Las transformaciones se realizan desde los controles sobre las piezas. Se conservan los atajos W/R existentes. El selector de paso de Snap se elimina; la casilla Snap mantiene el ajuste de movimiento y tamaño en 50 mm y de giro en 15°.
+- El visor mantiene la cuadrícula del suelo sin ejes de colores en el origen.
 - Contorno cian, seis tiradores cuadrados de tamaño, cotas flotantes editables en mm, control de desplazamiento y triángulo de elevación.
 - Al redimensionar desde una cara, la opuesta permanece fija. El arrastre aplica el paso de Snap y se limita ante suelo, paredes y techo. Las cotas numéricas se confirman con Enter o al perder el foco.
 - Las cotas deben estar por encima de tiradores, iconos y líneas. Se recolocan para evitar solapamientos; su borrador de edición no debe ser sobrescrito por el refresco del visor.
