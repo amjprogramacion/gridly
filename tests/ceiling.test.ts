@@ -4,6 +4,7 @@ import { intersectsRoom, limitMovement, fitRoomObject } from '../src/collisions.
 import { fitRotation } from '../src/rotationFit.ts'
 import { worldDimensions } from '../src/geometry.ts'
 import { state, defaultRoom, add, selected, moveSelected, edit, editRoom, checkpoint, undo, redo, beginRotation, endRotation, rotateSelected, resizeSelectedFromFace, duplicate, load, startAutosave } from '../src/editor.ts'
+state.collisions=false
 import type { Box } from '../src/editor.ts'
 const room=defaultRoom()
 const box:Box={id:'ceiling',name:'Prisma',type:'box',x:0,y:0,z:0,width:600,height:600,depth:600,color:'#779b8e'}

@@ -3,6 +3,7 @@ import { fitRotation } from '../src/rotationFit.ts'
 import { worldDimensions } from '../src/geometry.ts'
 import { intersectsWall } from '../src/collisions.ts'
 import { state, defaultRoom, add, beginRotation, endRotation, rotateSelected, undo, redo } from '../src/editor.ts'
+state.collisions=false
 import type { Box } from '../src/editor.ts'
 const room=defaultRoom()
 const beam:Box={id:'beam',type:'beam',name:'Viga',x:0,y:2250,z:0,width:4000,height:250,depth:300,color:'#96a4b5'}

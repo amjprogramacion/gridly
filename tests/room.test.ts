@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { state, checkpoint, editRoom, toggleWall, undo, redo, load, defaultRoom } from '../src/editor.ts'
+state.collisions=false
 checkpoint();editRoom('width','5000');toggleWall('north');undo();assert.equal(state.room!.walls.north,true);undo();assert.equal(state.room!.width,4000);redo();assert.equal(state.room!.width,5000)
 const project={version:2,units:'mm',objects:[],room:{...defaultRoom(),width:6200}}
 await load(new File([JSON.stringify(project)],'room.json'));assert.equal(state.room!.width,6200);undo();assert.equal(state.room!.width,5000)

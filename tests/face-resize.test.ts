@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { resizedFromFace } from '../src/faceResize.ts'
 import { state, defaultRoom, selected, resizeSelectedFromFace, checkpoint, undo } from '../src/editor.ts'
+state.collisions=false
 import { intersectsWall } from '../src/collisions.ts'
 const box={id:'resize',name:'Prisma',x:0,y:0,z:0,width:600,height:600,depth:600,color:'#779b8e'}
 const wider=resizedFromFace(box,'width',1000,1,{x:1,y:0,z:0})

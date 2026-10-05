@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las nueve suites del modelo
+npm test        # Ejecutar las diez suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -27,6 +27,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 - Prismas, puertas, ventanas, columnas y vigas con posición, dimensiones, nombre y color editables.
 - Puertas y ventanas vinculadas a paredes, con huecos reales y alféizar editable en ventanas.
 - Snap a cuadrícula y a paredes, suelo y altura de la habitación.
+- Colisiones entre elementos con interruptor general y por pieza para prismas, puertas, ventanas, columnas y vigas.
 - Colisiones que impiden atravesar paredes y el techo virtual incluso con movimientos rápidos o Snap desactivado.
 - Rotación XYZ con tamaño adaptable al espacio disponible entre paredes y bajo el techo.
 - Contorno de selección, tiradores de tamaño, cotas flotantes editables, desplazamiento y elevación.
@@ -38,6 +39,10 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 Selecciona **Habitación** para definir el espacio y añade piezas desde la barra lateral. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
 
 El techo virtual está a la altura de las paredes y limita la parte superior de las piezas, también si están giradas o las paredes están desactivadas. Al reducir la altura de la habitación, las piezas se bajan si caben; si son demasiado altas, se rechaza el cambio. El techo no se dibuja y no oculta la escena.
+
+**Colisiones**, en la barra de herramientas, cambia a la vez el ajuste de todas las piezas. **Colisiones de este elemento**, en sus propiedades, modifica solo esa pieza: si está desactivado, puede atravesar y ser atravesada por las demás, mientras las piezas activas siguen colisionando entre sí. El general muestra un estado mixto cuando hay excepciones; pulsarlo en ese estado desactiva todas y pulsarlo de nuevo las activa todas. Los cambios generales también definen el ajuste de las piezas que añadas después. Paredes y techo siguen activos, y todos los ajustes se guardan con el proyecto. Los proyectos anteriores se convierten conservando sus colisiones efectivas.
+
+Con las colisiones activas, los movimientos se detienen al contactar y permiten deslizarse por los ejes libres. Los tiradores de tamaño se limitan al contacto; las medidas y giros que provocarían un solapamiento se rechazan. Añadir y duplicar buscan una posición cercana libre. Si ya hay piezas solapadas, sepáralas o excluye una antes de activar las colisiones. Puertas y ventanas de paredes desactivadas no bloquean a otros elementos.
 
 Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. El control de base mueve la pieza sobre un plano horizontal y el triángulo la eleva. Escribe en una cota flotante y confirma con Enter o al salir del campo. El panel lateral permite introducir medidas y ángulos exactos.
 
@@ -58,7 +63,7 @@ Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y l
 
 ## Guardar y continuar desde otro equipo
 
-Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 4 y admite archivos de versiones 1–4.
+Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 5 y admite archivos de versiones 1–5.
 
 La habitación y sus objetos se autoguardan con cada modificación en el almacenamiento local del navegador y se recuperan al recargar o volver a abrir Gridly en la misma dirección. Se incluyen arrastres, deshacer/rehacer y proyectos importados. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
 
@@ -75,14 +80,14 @@ Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea
 | `src/useObjectControls.ts` | Controles flotantes y arrastres |
 | `src/App.vue`, `src/style.css` | Interfaz y estilos |
 | `src/geometry.ts` | Envolventes y rotación |
-| `src/collisions.ts`, `src/snapping.ts` | Colisiones y snap |
+| `src/collisions.ts`, `src/objectCollisions.ts`, `src/snapping.ts` | Colisiones de habitación y elementos, y snap |
 | `src/rotationFit.ts`, `src/faceResize.ts` | Giro adaptable y redimensionado |
 | `src/walls.ts` | Paredes y huecos |
 | `tests/` | Pruebas de regresión del modelo |
 
 ## Límites actuales
 
-No se incluyen colisiones ni snap entre objetos libres, agrupación, importación STL, paredes irregulares ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Las colisiones usan envolventes conservadoras para piezas giradas.
+No se incluyen snap entre objetos libres, agrupación, importación STL, paredes irregulares ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Las colisiones usan envolventes conservadoras para piezas giradas.
 
 Los controles y cotas pueden necesitar ajustes adicionales en piezas muy pequeñas o vistas extremas. Vite muestra un aviso por el tamaño del bundle de Three.js; la compilación termina correctamente.
 

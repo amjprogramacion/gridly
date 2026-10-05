@@ -1,4 +1,5 @@
 import type { Box, Room, WallSide } from './editor'
+import { collisionPeers, objectBounds, intersectsObjects } from './objectCollisions.ts'
 import { worldDimensions } from './geometry.ts'
 import type { Axis, Position } from './snapping'
 const axes:Axis[]=['x','y','z']
@@ -35,12 +36,13 @@ function sweep(from:Position,delta:Position,bounds:Bounds){
  if(entry<-EPS||entry>1+EPS||exit<=Math.max(entry,0)+EPS)return null
  return {time:Math.max(0,entry),axes:hitAxes,planes:Object.fromEntries(hitAxes.map(axis=>[axis,delta[axis]>0?bounds.min[axis]:bounds.max[axis]])) as Partial<Position>}
 }
-/** Continuous collision detection prevents crossing a wall even in one large drag step. */
-export function limitMovement(object:Box,room:Room|null,target:Position){
+/** Continuous collision detection prevents crossing walls or other elements in one large drag step. */
+export function limitMovement(object:Box,room:Room|null,target:Position,objects:Box[]=[],collisions=false){
  let position:Position={x:object.x,y:object.y,z:object.z};let delta:Position={x:target.x-position.x,y:Math.max(0,target.y)-position.y,z:target.z-position.z};let blocked=false
- if(!room||object.type==='door'||object.type==='window')return {position:{...target,y:Math.max(0,target.y)},blocked}
- const obstacles=walls(room).map(w=>expanded(w,object))
- obstacles.push({min:{x:-Infinity,y:room.height-worldDimensions(object).height,z:-Infinity},max:{x:Infinity,y:Infinity,z:Infinity}})
+ const opening=object.type==='door'||object.type==='window'
+ const obstacles=room?walls(room).filter(w=>!opening||w.side!==object.wall).map(w=>expanded(w,object)):[]
+ if(room)obstacles.push({min:{x:-Infinity,y:room.height-worldDimensions(object).height,z:-Infinity},max:{x:Infinity,y:Infinity,z:Infinity}})
+ obstacles.push(...collisionPeers(object,objects,room,collisions).map(other=>expanded(objectBounds(other),object)))
  for(let iteration=0;iteration<4;iteration++){
   const hits=obstacles.map(w=>sweep(position,delta,w)).filter(h=>h!==null)
   const time=hits.reduce((t,h)=>Math.min(t,h.time),Infinity)
@@ -50,7 +52,7 @@ export function limitMovement(object:Box,room:Room|null,target:Position){
   for(const axis of axes)delta[axis]=hitAxes.has(axis)?0:delta[axis]*(1-time)
   if(axes.every(axis=>Math.abs(delta[axis])<EPS))break
  }
- if(intersectsRoom({...object,...position},room))return {position:{x:object.x,y:object.y,z:object.z},blocked:true}
+ if(intersectsRoom({...object,...position},room)||intersectsObjects({...object,...position},objects,room,collisions))return {position:{x:object.x,y:object.y,z:object.z},blocked:true}
  return {position,blocked}
 }
 /** Reposition objects when walls move; reject a room edit if an object's size cannot fit. */

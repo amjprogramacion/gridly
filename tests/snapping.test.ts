@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { snapPosition, touchingWalls } from '../src/snapping.ts'
 import { state, defaultRoom, add, moveSelected, checkpoint, undo, redo, snapSelected, edit } from '../src/editor.ts'
+state.collisions=false
 import type { Box } from '../src/editor.ts'
 const room=defaultRoom()
 const column:Box={id:'column',type:'column',name:'Columna',x:0,y:0,z:0,width:301,height:2500,depth:300,color:'#a0aaba'}

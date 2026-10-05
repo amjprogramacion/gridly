@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { intersectsWall, limitMovement } from '../src/collisions.ts'
 import { state, defaultRoom, add, moveSelected, edit, editRoom, toggleWall, duplicate, checkpoint, undo, redo, load } from '../src/editor.ts'
+state.collisions=false
 import type { Box, ObjectKind } from '../src/editor.ts'
 const room=defaultRoom()
 const box:Box={id:'test',name:'Prisma',type:'box',x:0,y:0,z:0,width:600,height:600,depth:600,color:'#779b8e'}

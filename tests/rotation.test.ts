@@ -4,6 +4,7 @@ import { worldDimensions } from '../src/geometry.ts'
 import { intersectsWall, limitMovement } from '../src/collisions.ts'
 import { snapPosition } from '../src/snapping.ts'
 import { state, defaultRoom, add, edit, checkpoint, undo, redo, load } from '../src/editor.ts'
+state.collisions=false
 import type { Box } from '../src/editor.ts'
 const close=(actual:number,expected:number)=>assert.ok(Math.abs(actual-expected)<1e-6,`${actual} != ${expected}`)
 const object:Box={id:'rotation',type:'beam',name:'Viga',x:0,y:0,z:0,width:1200,height:200,depth:400,color:'#779b8e'}
