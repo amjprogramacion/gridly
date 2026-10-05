@@ -108,7 +108,7 @@ toggleCollisions();assert.ok(state.objects.every(object=>object.collisions===fal
 state.selected=third.id;toggleSelectedCollisions();state.selected=fourth.id;toggleSelectedCollisions()
 state.selected=third.id;moveSelected(10000,0,1000);assert.equal(selected.value!.x,400)
 assert.equal(state.collisions,false);assert.equal(collisionSelection.value.mixed,true)
-const mixed=projectJSON();assert.equal(JSON.parse(mixed).version,5)
+const mixed=projectJSON();assert.equal(JSON.parse(mixed).version,6)
 await load(new File([mixed],'mixed.json'));assert.equal(state.collisions,false);assert.equal(collisionSelection.value.mixed,true)
 state.selected=third.id;moveSelected(10000,0,1000);assert.equal(selected.value!.x,400)
 // Migration preserves the previous gate without silently enabling old individual flags.

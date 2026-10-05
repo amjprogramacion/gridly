@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las doce suites del modelo
+npm test        # Ejecutar las catorce suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -32,6 +32,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 - Rotación XYZ con tamaño adaptable al espacio disponible entre paredes y bajo el techo.
 - Contorno de selección, tiradores de tamaño, cotas flotantes editables, desplazamiento y elevación.
 - Iconos de giro pegados a las caras. El aro correspondiente aparece al pasar el cursor, enfocar el control o arrastrarlo.
+- Selección múltiple con Ctrl/Mayús, agrupación y desagrupación de piezas libres, con movimiento, giro y escala comunes.
 - Duplicado, eliminación, deshacer/rehacer e importación/exportación de proyectos JSON.
 
 ## Uso
@@ -63,9 +64,15 @@ Con Snap activo, los arrastres usan el paso seleccionado y los giros pasos de 15
 
 Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y la rueda para zoom. Los controles flotantes, cotas y contorno de selección se ocultan mientras se mueve la cámara, incluida la inercia, y reaparecen al detenerse. El selector de vista ofrece perspectiva, superior, frontal y lateral.
 
+## Agrupar elementos
+
+Selecciona varias piezas con **Ctrl/Cmd o Mayús + clic**, en la lista o en el visor, y pulsa **Agrupar**. Cada pieza seleccionada muestra su contorno cian para identificar la selección. Aparecen como un único elemento en la escena, conservando sus formas y colores. Puedes moverlo, elevarlo, girarlo, duplicarlo o eliminarlo como cualquier pieza. **Desagrupar** recupera los componentes en su posición, tamaño y orientación actuales. También puedes agrupar grupos.
+
+El tamaño del grupo cambia proporcionalmente en los tres ejes; conserva la forma de sus piezas. Los giros conservan el tamaño y se rechazan si el grupo no cabe. Las colisiones y el snap utilizan la envolvente del grupo, incluidos los espacios entre componentes. Si esa envolvente invade otro elemento activo, hay que incluirlo en la selección o separarlo antes de agrupar. Los grupos con vigas o columnas mantienen colisiones obligatorias y el color común de sus piezas estructurales. Desagrupar restaura los ajustes individuales de colisión; si provoca solapamientos activos, se rechaza la operación. Puertas y ventanas no se agrupan porque dependen de una pared.
+
 ## Guardar y continuar desde otro equipo
 
-Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 5 y admite archivos de versiones 1–5.
+Usa **Guardar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 6 y admite archivos de versiones 1–6.
 
 La habitación y sus objetos se autoguardan con cada modificación en el almacenamiento local del navegador y se recuperan al recargar o volver a abrir Gridly en la misma dirección. Se incluyen arrastres, deshacer/rehacer y proyectos importados. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
 
@@ -89,7 +96,7 @@ Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea
 
 ## Límites actuales
 
-No se incluyen snap entre objetos libres, agrupación, importación STL, paredes irregulares ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Las colisiones usan envolventes conservadoras para piezas giradas.
+No se incluyen snap entre objetos libres, importación STL, paredes irregulares ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Los movimientos usan envolventes conservadoras para piezas giradas; las comprobaciones estáticas distinguen cajas orientadas que solo se tocan.
 
 Los controles y cotas pueden necesitar ajustes adicionales en piezas muy pequeñas o vistas extremas. Vite muestra un aviso por el tamaño del bundle de Three.js; la compilación termina correctamente.
 

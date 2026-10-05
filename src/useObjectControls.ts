@@ -2,6 +2,7 @@ import { shallowRef, reactive, onBeforeUnmount } from 'vue'
 import * as T from 'three'
 import { state, selected, isOpening, checkpoint, moveSelected, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
 import type { DimensionKey } from './faceResize'
+import { projectSelectionOutline } from './selectionOutline'
 type Point={x:number;y:number}
 type Handle={key:DimensionKey;sign:number;point:Point;direction:T.Vector3;screen:Point}
 type Measure={key:DimensionKey;label:string;start:Point;end:Point;point:Point;value:number}
@@ -20,9 +21,7 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
   const object=selected.value;if(!object||!active||!active.visible){overlay.value=null;return}
   camera=cam;mesh=active;width=w;height=h;rect=bounds;mesh.updateWorldMatrix(true,false)
   const opening=isOpening(object),cx=object.width/2000,cz=object.depth/2000,bottom=opening?0:-object.height/2000,top=bottom+object.height/1000,cy=(bottom+top)/2
-  const corners=[local(-cx,bottom,-cz),local(cx,bottom,-cz),local(cx,bottom,cz),local(-cx,bottom,cz),local(-cx,top,-cz),local(cx,top,-cz),local(cx,top,cz),local(-cx,top,cz)].map(project)
-  const edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]
-  const outline=edges.map(([a,b])=>`M${corners[a!]!.x},${corners[a!]!.y}L${corners[b!]!.x},${corners[b!]!.y}`).join(' ')
+  const outline=projectSelectionOutline(object,mesh,camera,width,height)
   const center=local(0,cy,0),orientation=mesh.getWorldQuaternion(new T.Quaternion())
   const handles:Handle[]=[]
   for(const key of ['width','height','depth'] as DimensionKey[])for(const sign of [-1,1]){

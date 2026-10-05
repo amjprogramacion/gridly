@@ -21,7 +21,7 @@ await load(new File([JSON.stringify({...project,objects:[{...project.objects[0],
 let savedBlob:Blob|undefined
 const originalURL=URL.createObjectURL;URL.createObjectURL=blob=>{savedBlob=blob;return 'blob:test'};URL.revokeObjectURL=()=>{}
 ;(globalThis as any).document={createElement:()=>({click(){},href:'',download:''})}
-save();const saved=JSON.parse(await savedBlob!.text());assert.equal(saved.version,5);assert.equal(saved.objects.length,2);assert.equal(saved.room.width,4000);URL.createObjectURL=originalURL
+save();const saved=JSON.parse(await savedBlob!.text());assert.equal(saved.version,6);assert.equal(saved.objects.length,2);assert.equal(saved.room.width,4000);URL.createObjectURL=originalURL
 console.log('Openings, wall cutouts, editable dimensions, room resizing, history and project persistence passed.')
 const overlapRoom=defaultRoom()
 const overlapA={...project.objects[0],wall:'north' as const,offset:1500,width:1000,height:2100,y:0}

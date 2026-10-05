@@ -1,5 +1,5 @@
 import type { Box, Room, WallSide } from './editor'
-import { collisionPeers, objectBounds, intersectsObjects } from './objectCollisions.ts'
+import { collisionPeers, objectBounds, intersectsObjects, boundsOverlap, overlaps, orientedSweep } from './objectCollisions.ts'
 import { worldDimensions } from './geometry.ts'
 import type { Axis, Position } from './snapping'
 const axes:Axis[]=['x','y','z']
@@ -42,10 +42,14 @@ export function limitMovement(object:Box,room:Room|null,target:Position,objects:
  const opening=object.type==='door'||object.type==='window'
  const obstacles=room?walls(room).filter(w=>!opening||w.side!==object.wall).map(w=>expanded(w,object)):[]
  if(room)obstacles.push({min:{x:-Infinity,y:room.height-worldDimensions(object).height,z:-Infinity},max:{x:Infinity,y:Infinity,z:Infinity}})
- obstacles.push(...collisionPeers(object,objects,room,collisions).map(other=>expanded(objectBounds(other),object)))
+ const peers=collisionPeers(object,objects,room,collisions)
+ obstacles.push(...peers.map(other=>expanded(objectBounds(other),object)))
  for(let iteration=0;iteration<4;iteration++){
+  const current={...object,...position}
+  const narrowTime=peers.filter(other=>boundsOverlap(current,other)&&!overlaps(current,other)).reduce((time,other)=>Math.min(time,orientedSweep(current,other,delta)??Infinity),Infinity)
   const hits=obstacles.map(w=>sweep(position,delta,w)).filter(h=>h!==null)
   const time=hits.reduce((t,h)=>Math.min(t,h.time),Infinity)
+  if(narrowTime<time){for(const axis of axes)position[axis]+=delta[axis]*narrowTime;blocked=true;break}
   if(!Number.isFinite(time)){for(const axis of axes)position[axis]+=delta[axis];break}
   blocked=true;for(const axis of axes)position[axis]+=delta[axis]*time
   const tied=hits.filter(h=>Math.abs(h.time-time)<EPS);const hitAxes=new Set(tied.flatMap(h=>h.axes));for(const hit of tied)for(const axis of hit.axes)position[axis]=hit.planes[axis]!

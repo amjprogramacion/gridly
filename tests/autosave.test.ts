@@ -28,7 +28,7 @@ state.selected='room';state.snap=false;state.step=10;state.error='Aviso'
 await nextTick();assert.equal(writes,beforeSelection)
 const project={version:4,units:'mm',room:{...defaultRoom(),width:6400},objects:[]}
 await load(new File([JSON.stringify(project)],'project.json'));await nextTick()
-assert.equal(saved().room.width,6400);assert.equal(saved().version,5)
+assert.equal(saved().room.width,6400);assert.equal(saved().version,6)
 const beforeInvalid=writes
 await load(new File(['{}'],'invalid.json'));await nextTick();assert.equal(writes,beforeInvalid)
 // El cierre guarda incluso si aún no se ha ejecutado el watcher.

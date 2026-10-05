@@ -1,3 +1,4 @@
+import { groupChildren, makeGroup, validateGroups, cloneObject, recolorStructure, validGroupScale } from './groups.ts'
 import { reactive, computed, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
 import { fitRotation } from './rotationFit.ts'
@@ -5,14 +6,14 @@ import { isStructural, hasObjectCollisions, intersectsObjects, objectBounds, col
 import { worldDimensions, normalizeAngle } from './geometry.ts'
 import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
-export type ObjectKind = 'box' | 'door' | 'window' | 'column' | 'beam'
+export type ObjectKind = 'box' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
-export interface Box { id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface Box { children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface Room { width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
-export const labels:Record<ObjectKind,string>={box:'Prisma',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga'}
+export const labels:Record<ObjectKind,string>={box:'Prisma',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga',group:'Grupo'}
 export const defaultRoom=():Room=>({width:4000,depth:3500,height:2500,thickness:120,walls:{north:true,south:true,east:true,west:true}})
 export const WALL_COLOR='#526171'
-export const state=reactive({objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',collisions:true,structuralColor:WALL_COLOR,snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
+export const state=reactive({objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',selection:[] as string[],collisions:true,structuralColor:WALL_COLOR,snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
 export { isStructural }
 export const collisionSelection=computed(()=>{
  const optional=state.objects.filter(object=>!isStructural(object)),active=optional.filter(object=>object.collisions??state.collisions).length
@@ -20,13 +21,35 @@ export const collisionSelection=computed(()=>{
 })
 function collisionObjects(objects:Box[]=state.objects){return objects.map(object=>({...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}))}
 function collidable(object:Box){return {...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}}
+export const selection=computed(()=>state.objects.filter(o=>state.selection.includes(o.id)||o.id===state.selected))
+export function selectObject(id:string,multiple=false){
+ if(!multiple||id==='room'||!id){state.selection=[];state.selected=id;return}
+ const ids=selection.value.map(o=>o.id)
+ state.selection=ids.includes(id)?ids.filter(value=>value!==id):[...ids,id]
+ state.selected=state.selection.at(-1)??''
+}
+watch(()=>state.selected,()=>{if(!state.selection.includes(state.selected))state.selection=[]},{flush:'sync'})
+export const canGroup=computed(()=>selection.value.length>1&&selection.value.every(o=>!isOpening(o)))
+export function groupSelected(){
+ if(!canGroup.value)return
+ const members=selection.value,group=makeGroup(members)
+ try{validateGroups([...state.objects.filter(o=>!members.includes(o)),group])}catch{state.error='El grupo supera el límite de componentes o de grupos anidados.';return}
+ if(intersectsObjects(collidable(group),collisionObjects(state.objects.filter(o=>!members.includes(o))),state.room,true)){state.error='La envolvente del grupo se solapa con otro elemento. Inclúyelo en el grupo o sepáralo.';return}
+ checkpoint();state.objects=state.objects.filter(o=>!members.includes(o));state.objects.push(group);selectObject(group.id);state.error=''
+}
+export function ungroupSelected(){
+ const group=selected.value;if(group?.type!=='group')return
+ const children=groupChildren(group),others=state.objects.filter(o=>o.id!==group.id)
+ if(children.some(o=>intersectsRoom(o,state.room))||hasObjectCollisions(collisionObjects([...others,...children]),state.room,true)){state.error='No se puede desagrupar mientras las piezas se solapen con colisiones activas.';return}
+ checkpoint();state.objects=[...others,...children];selectObject(children[0]!.id);state.error=''
+}
 export const selected=computed(()=>state.objects.find(o=>o.id===state.selected))
 export const wallContacts=computed(()=>selected.value?touchingWalls(selected.value,state.room,state.objects):[])
 export function snapSelected(axes:Axis[]=['x','y','z']){const o=selected.value;if(!o||isOpening(o))return;const {position}=snapPosition(o,state.room,state.objects,o,{enabled:state.snap,walls:state.wallSnap,step:state.step,axes,grid:false});applyMovement(o,position)}
 export function editStructuralColor(color:string){
  if(!/^#[0-9a-f]{6}$/i.test(color)||color===state.structuralColor)return
  checkpoint();state.structuralColor=color
- for(const object of state.objects)if(isStructural(object))object.color=color
+ recolorStructure(state.objects,color)
 }
 export function isOpening(o:Box){return o.type==='door'||o.type==='window'}
 export function wallLength(room:Room,side:WallSide){return side==='north'||side==='south'?room.width:room.depth}
@@ -35,8 +58,8 @@ function prepareRoom(room:Room,objects:Box[]){for(const o of objects){normalizeO
 function applyMovement(o:Box,position:Pick<Box,'x'|'y'|'z'>){const result=limitMovement(collidable(o),state.room,position,collisionObjects(),true);Object.assign(o,result.position);state.collisionBlocked=result.blocked}
 const past:string[]=[],future:string[]=[]
 export const history=reactive({undo:0,redo:0})
-function snapshot(){return JSON.stringify({objects:state.objects,room:state.room,selected:state.selected,collisions:state.collisions,structuralColor:state.structuralColor})}
-function restore(value:string){const data=JSON.parse(value);state.objects=data.objects;state.room=data.room;state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
+function snapshot(){return JSON.stringify({objects:state.objects,room:state.room,selected:state.selected,selection:state.selection,collisions:state.collisions,structuralColor:state.structuralColor})}
+function restore(value:string){const data=JSON.parse(value);state.objects=data.objects;state.room=data.room;state.selection=data.selection??[];state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
 function counts(){history.undo=past.length;history.redo=future.length}
 export function checkpoint(){past.push(snapshot());if(past.length>100)past.shift();future.length=0;counts()}
 export function undo(){if(!past.length)return;future.push(snapshot());restore(past.pop()!);counts()}
@@ -50,6 +73,7 @@ export function editRoom(key:'width'|'depth'|'height'|'thickness',value:string){
 }
 export function toggleWall(key:WallSide){if(!state.room)return;const room={...state.room,walls:{...state.room.walls,[key]:!state.room.walls[key]}},objects=state.objects.map(o=>({...o}));if(!prepareRoom(room,objects)){state.error='No se puede activar la pared: hay un objeto demasiado grande o solapado. Reduce sus medidas o cambia su posición.';return}checkpoint();state.room=room;state.objects=objects;state.error=''}
 export function add(type:ObjectKind='box'){
+ if(type==='group')return
  if((type==='door'||type==='window')&&!state.room)return
  const wall=state.room?(Object.keys(state.room.walls) as WallSide[]).find(k=>state.room!.walls[k]):undefined
  if((type==='door'||type==='window')&&!wall){state.error='Activa una pared de la habitación para añadir puertas o ventanas.';return}
@@ -90,7 +114,7 @@ function findPlacement(object:Box):Box|null{
 }
 export function duplicate(){
  if(!selected.value)return
- const source=selected.value,box={...source,id:crypto.randomUUID(),name:source.name+' copia'}
+ const source=selected.value,box={...cloneObject(source,true),id:crypto.randomUUID(),name:source.name+' copia'}
  if(isOpening(box)&&state.room){box.offset=(box.offset??0)+box.width+100;normalizeOpening(box,state.room)}
  else Object.assign(box,limitMovement(source,state.room,{x:source.x+200,y:source.y,z:source.z+200}).position)
  const placed=findPlacement(box)
@@ -109,6 +133,7 @@ export function toggleSelectedCollisions(){
  checkpoint();object.collisions=candidate.collisions;state.error='';state.collisionBlocked=false
 }
 function objectCollision(candidate:Box){
+ if(candidate.type==='group'&&!validGroupScale(candidate)){state.error='El tamaño deja un componente por debajo de 0,001 mm.';return true}
  if(!intersectsObjects(collidable(candidate),collisionObjects(),state.room,true))return false
  state.error='El elemento se solaparía con otro. Muévelo o desactiva sus colisiones.';state.collisionBlocked=true;return true
 }
@@ -119,16 +144,17 @@ function moveOpening(object:Box,candidate:Box){
  object.offset=(object.wall==='north'||object.wall==='south'?position.x:position.z)+length/2
  object.y=position.y;normalizeOpening(object,state.room);state.collisionBlocked=blocked;state.error=''
 }
-export function remove(){if(!selected.value)return;checkpoint();state.objects=state.objects.filter(o=>o.id!==state.selected);state.selected=state.room?'room':''}
+export function remove(){if(!selection.value.length)return;const ids=selection.value.map(o=>o.id);checkpoint();state.objects=state.objects.filter(o=>!ids.includes(o.id));selectObject(state.room?'room':'')}
 export function edit(key:keyof Box,value:string,record=true){
  const o=selected.value;if(!o)return
  if(key==='collisions'){toggleSelectedCollisions();return}
  if(key==='wall'){if(!state.room||!['north','south','east','west'].includes(value))return;if(record)checkpoint();const candidate={...o,wall:value as WallSide};normalizeOpening(candidate,state.room);if(intersectsRoom(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad antes de cambiar de pared.';return}if(objectCollision(candidate))return;Object.assign(o,candidate);state.error='';return}
- if(key==='color'&&isStructural(o))return
+ if(key==='color'&&(isStructural(o)||o.type==='group'))return
  if(key==='name'||key==='color'){if(record)checkpoint();Object.assign(o,{[key]:value});return}
  const n=Number(value);if(!value.trim()||!Number.isFinite(n)||Math.abs(n)>100000||(['width','height','depth'].includes(key)&&n<1))return
  if(key==='rotationX'||key==='rotationY'||key==='rotationZ'){rotateSelected({...o,[key]:n},record);return}
  const candidate={...o,[key]:key==='y'?Math.max(0,n):n}
+ if(o.type==='group'&&['width','height','depth'].includes(key)){const ratio=n/(o[key] as number);candidate.width=o.width*ratio;candidate.height=o.height*ratio;candidate.depth=o.depth*ratio}
  if(isOpening(candidate)&&state.room)normalizeOpening(candidate,state.room)
  else if(key==='x'||key==='y'||key==='z'){if(record)checkpoint();applyMovement(o,candidate);return}
  else if(intersectsRoom(candidate,state.room)){state.error='Estas dimensiones harían que el objeto atravesase una pared o el techo. Reduce su tamaño o muévelo.';return}
@@ -143,14 +169,14 @@ export function rotateSelected(rotation:Pick<Box,'rotationX'|'rotationY'|'rotati
  const o=selected.value;if(!o||isOpening(o))return
  const reference=rotationReference?.id===o.id?rotationReference:o
  const candidate={...o,width:reference.width,height:reference.height,depth:reference.depth,rotationX:normalizeAngle(rotation.rotationX??0),rotationY:normalizeAngle(rotation.rotationY??0),rotationZ:normalizeAngle(rotation.rotationZ??0)}
- const fitted=fitRotation(candidate,state.room);if(objectCollision(fitted))return
+ const fitted=o.type==='group'?candidate:fitRotation(candidate,state.room);if(intersectsRoom(fitted,state.room)){state.collisionBlocked=true;return}if(objectCollision(fitted))return
  if(record)checkpoint();Object.assign(o,fitted);state.error='';state.collisionBlocked=false
 }
 export function resizeSelectedFromFace(original:Box,key:DimensionKey,size:number,sign:number,direction:{x:number;y:number;z:number}){
  const o=selected.value;if(!o||o.id!==original.id)return
  if(state.snap)size=Math.round(size/state.step)*state.step
- const make=(value:number)=>{const candidate=resizedFromFace(original,key,value,sign,direction);if(state.room&&isOpening(candidate))normalizeOpening(candidate,state.room);return candidate}
- const valid=(candidate:Box)=>candidate.y>=-1e-7&&!intersectsRoom(candidate,state.room)&&!intersectsObjects(collidable(candidate),collisionObjects(),state.room,true)
+ const make=(value:number)=>{let candidate=resizedFromFace(original,key,value,sign,direction);if(original.type==='group'){const ratio=candidate[key]/original[key],old=worldDimensions(original);candidate={...candidate,width:original.width*ratio,height:original.height*ratio,depth:original.depth*ratio};candidate.y=original.y+old.height/2+direction.y*(candidate[key]-original[key])*sign/2-worldDimensions(candidate).height/2}if(state.room&&isOpening(candidate))normalizeOpening(candidate,state.room);return candidate}
+ const valid=(candidate:Box)=>validGroupScale(candidate)&&candidate.y>=-1e-7&&!intersectsRoom(candidate,state.room)&&!intersectsObjects(collidable(candidate),collisionObjects(),state.room,true)
  let candidate=make(size)
  if(!valid(candidate)){let low=0,high=1;for(let i=0;i<40;i++){const mid=(low+high)/2;if(valid(make(original[key]+(size-original[key])*mid)))low=mid;else high=mid}candidate=make(original[key]+(size-original[key])*low);state.collisionBlocked=true}else state.collisionBlocked=false
  candidate.y=Math.max(0,candidate.y);Object.assign(o,candidate);state.error=''
@@ -160,19 +186,19 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  const {position}=snapPosition(o,state.room,state.objects,{x,y,z},{enabled:state.snap,walls:state.wallSnap,step:state.step,axes})
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);const candidate={...o,offset:(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2,y:position.y};normalizeOpening(candidate,state.room);moveOpening(o,candidate)}else applyMovement(o,position)
 }
-export function projectJSON(){return JSON.stringify({version:5,units:'mm',room:state.room,objects:collisionObjects().map(object=>isStructural(object)?{...object,color:state.structuralColor}:object),collisions:state.collisions,structuralColor:state.structuralColor})}
+export function projectJSON(){return JSON.stringify({version:6,units:'mm',room:state.room,objects:collisionObjects().map(object=>isStructural(object)&&object.type!=='group'?{...object,color:state.structuralColor}:object),collisions:state.collisions,structuralColor:state.structuralColor})}
 export function save(){const url=URL.createObjectURL(new Blob([JSON.stringify(JSON.parse(projectJSON()),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='gridly.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boolean;structuralColor:string}{
- const data=JSON.parse(value);if(![1,2,3,4,5].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
+ const data=JSON.parse(value);if(![1,2,3,4,5,6].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
  if(data.collisions!==undefined&&typeof data.collisions!=='boolean')throw Error()
  if(data.structuralColor!==undefined&&(typeof data.structuralColor!=='string'||!/^#[0-9a-f]{6}$/i.test(data.structuralColor)))throw Error()
  const structuralColor=data.structuralColor??WALL_COLOR
  const collisions=data.collisions??false
- const ids=new Set(['room']);for(const o of data.objects){if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'])if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'])if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
+ const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
  if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsRoom(o,room)))throw Error('collision')}
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.
- for(const object of data.objects){if(isStructural(object))object.color=structuralColor;object.collisions=isStructural(object)|| (data.version<5?collisions&&object.collisions!==false:object.collisions??collisions)}
+ for(const object of all){if(isStructural(object)&&object.type!=='group')object.color=structuralColor;object.collisions=isStructural(object)|| (data.version<5?collisions&&object.collisions!==false:object.collisions??collisions)}
  if(hasObjectCollisions(data.objects,room,true))throw Error('objects')
  return {room,objects:data.objects,collisions,structuralColor}
 }
