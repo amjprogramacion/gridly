@@ -13,7 +13,7 @@ const diagonal=limitMovement(box,room,{x:10000,y:0,z:1000});assert.equal(diagona
 const corner=limitMovement(box,room,{x:10000,y:0,z:10000});assert.equal(corner.position.x,1700);assert.equal(corner.position.z,1450)
 assert.deepEqual(limitMovement({...box,x:1700},room,{x:1500,y:0,z:800}).position,{x:1500,y:0,z:800})
 assert.equal(limitMovement({...box,x:3000},room,{x:0,y:0,z:0}).position.x,2420)
-assert.equal(limitMovement({...box,y:2500},room,{x:10000,y:2500,z:0}).blocked,false)
+assert.deepEqual(limitMovement(box,room,{x:10000,y:10000,z:0}).position,{x:1700,y:1900,z:0})
 room.walls.east=false;assert.equal(limitMovement(box,room,{x:10000,y:0,z:0}).blocked,false);room.walls.east=true
 for(const type of ['box','column','beam'] as ObjectKind[]){
  state.room=defaultRoom();state.objects=[];state.snap=false;add(type)

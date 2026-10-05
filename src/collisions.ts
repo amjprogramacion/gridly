@@ -19,6 +19,10 @@ export function intersectsWall(object:Box,room:Room|null){
  const min={x:object.x-width/2,y:object.y,z:object.z-depth/2},max={x:object.x+width/2,y:object.y+height,z:object.z+depth/2}
  return walls(room).some(wall=>(!opening||wall.side!==object.wall)&&axes.every(axis=>Math.min(max[axis],wall.max[axis])-Math.max(min[axis],wall.min[axis])>EPS))
 }
+/** The virtual ceiling remains active independently of the wall toggles. */
+export function intersectsRoom(object:Box,room:Room|null){
+ return !!room&&(object.y+worldDimensions(object).height>room.height+EPS||intersectsWall(object,room))
+}
 function expanded(wall:Bounds,object:Box):Bounds{const {width,height,depth}=worldDimensions(object);return {min:{x:wall.min.x-width/2,y:wall.min.y-height,z:wall.min.z-depth/2},max:{x:wall.max.x+width/2,y:wall.max.y,z:wall.max.z+depth/2}}}
 function sweep(from:Position,delta:Position,bounds:Bounds){
  let entry=-Infinity,exit=Infinity;let hitAxes:Axis[]=[]
@@ -36,6 +40,7 @@ export function limitMovement(object:Box,room:Room|null,target:Position){
  let position:Position={x:object.x,y:object.y,z:object.z};let delta:Position={x:target.x-position.x,y:Math.max(0,target.y)-position.y,z:target.z-position.z};let blocked=false
  if(!room||object.type==='door'||object.type==='window')return {position:{...target,y:Math.max(0,target.y)},blocked}
  const obstacles=walls(room).map(w=>expanded(w,object))
+ obstacles.push({min:{x:-Infinity,y:room.height-worldDimensions(object).height,z:-Infinity},max:{x:Infinity,y:Infinity,z:Infinity}})
  for(let iteration=0;iteration<4;iteration++){
   const hits=obstacles.map(w=>sweep(position,delta,w)).filter(h=>h!==null)
   const time=hits.reduce((t,h)=>Math.min(t,h.time),Infinity)
@@ -45,17 +50,18 @@ export function limitMovement(object:Box,room:Room|null,target:Position){
   for(const axis of axes)delta[axis]=hitAxes.has(axis)?0:delta[axis]*(1-time)
   if(axes.every(axis=>Math.abs(delta[axis])<EPS))break
  }
- if(intersectsWall({...object,...position},room))return {position:{x:object.x,y:object.y,z:object.z},blocked:true}
+ if(intersectsRoom({...object,...position},room))return {position:{x:object.x,y:object.y,z:object.z},blocked:true}
  return {position,blocked}
 }
 /** Reposition objects when walls move; reject a room edit if an object's size cannot fit. */
 export function fitRoomObject(object:Box,room:Room){
- if(object.type==='door'||object.type==='window')return !intersectsWall(object,room)
- if(object.y>=room.height)return true
- const {width,depth}=worldDimensions(object)
+ if(object.type==='door'||object.type==='window')return !intersectsRoom(object,room)
+ const {width,height,depth}=worldDimensions(object)
+ if(height>room.height+EPS)return false
+ object.y=Math.min(Math.max(0,room.height-height),Math.max(0,object.y))
  const minX=room.walls.west?-room.width/2+width/2:-Infinity,maxX=room.walls.east?room.width/2-width/2:Infinity
  const minZ=room.walls.north?-room.depth/2+depth/2:-Infinity,maxZ=room.walls.south?room.depth/2-depth/2:Infinity
  if(minX>maxX+EPS||minZ>maxZ+EPS)return false
  object.x=Math.min(maxX,Math.max(minX,object.x));object.z=Math.min(maxZ,Math.max(minZ,object.z))
- return !intersectsWall(object,room)
+ return !intersectsRoom(object,room)
 }

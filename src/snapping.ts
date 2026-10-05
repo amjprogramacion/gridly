@@ -22,7 +22,7 @@ export function wallCandidates(object:Box,room:Room,objects:Box[],position:Posit
   contacts.push({axis,label:names[side],target:(side==='west'||side==='north'?-1:1)*(roomSize-size)/2})
  }
  const insideFloor=overlap(position.x-width/2,position.x+width/2,-room.width/2,room.width/2)&&overlap(position.z-depth/2,position.z+depth/2,-room.depth/2,room.depth/2)
- if(insideFloor){contacts.push({axis:'y',label:'Suelo',target:0});if(height<=room.height)contacts.push({axis:'y',label:'Altura de paredes',target:room.height-height})}
+ if(insideFloor){contacts.push({axis:'y',label:'Suelo',target:0});if(height<=room.height)contacts.push({axis:'y',label:'Techo virtual',target:room.height-height})}
  return contacts
 }
 export function snapPosition(object:Box,room:Room|null,objects:Box[],raw:Position,options:{enabled:boolean;walls:boolean;step:number;axes:Axis[];grid?:boolean}){

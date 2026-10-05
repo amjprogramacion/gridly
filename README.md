@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las ocho suites del modelo
+npm test        # Ejecutar las nueve suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -27,8 +27,8 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 - Prismas, puertas, ventanas, columnas y vigas con posición, dimensiones, nombre y color editables.
 - Puertas y ventanas vinculadas a paredes, con huecos reales y alféizar editable en ventanas.
 - Snap a cuadrícula y a paredes, suelo y altura de la habitación.
-- Colisiones que impiden atravesar paredes incluso con movimientos rápidos o Snap desactivado.
-- Rotación XYZ con tamaño adaptable al espacio disponible entre paredes.
+- Colisiones que impiden atravesar paredes y el techo virtual incluso con movimientos rápidos o Snap desactivado.
+- Rotación XYZ con tamaño adaptable al espacio disponible entre paredes y bajo el techo.
 - Contorno de selección, tiradores de tamaño, cotas flotantes editables, desplazamiento y elevación.
 - Iconos de giro pegados a las caras. El aro correspondiente aparece al pasar el cursor, enfocar el control o arrastrarlo.
 - Duplicado, eliminación, deshacer/rehacer e importación/exportación de proyectos JSON.
@@ -36,6 +36,8 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 ## Uso
 
 Selecciona **Habitación** para definir el espacio y añade piezas desde la barra lateral. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
+
+El techo virtual está a la altura de las paredes y limita la parte superior de las piezas, también si están giradas o las paredes están desactivadas. Al reducir la altura de la habitación, las piezas se bajan si caben; si son demasiado altas, se rechaza el cambio. El techo no se dibuja y no oculta la escena.
 
 Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. El control de base mueve la pieza sobre un plano horizontal y el triángulo la eleva. Escribe en una cota flotante y confirma con Enter o al salir del campo. El panel lateral permite introducir medidas y ángulos exactos.
 
@@ -80,7 +82,7 @@ Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea
 
 ## Límites actuales
 
-No se incluyen colisiones ni snap entre objetos libres, agrupación, importación STL, paredes irregulares, techo de colisión ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Las colisiones usan envolventes conservadoras para piezas giradas.
+No se incluyen colisiones ni snap entre objetos libres, agrupación, importación STL, paredes irregulares ni apertura de hojas de puertas. Puertas y ventanas conservan la orientación de su pared. Las colisiones usan envolventes conservadoras para piezas giradas.
 
 Los controles y cotas pueden necesitar ajustes adicionales en piezas muy pequeñas o vistas extremas. Vite muestra un aviso por el tamaño del bundle de Three.js; la compilación termina correctamente.
 

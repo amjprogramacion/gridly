@@ -12,7 +12,8 @@ Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funcion
 - Se pueden añadir prismas, puertas, ventanas, columnas y vigas. Admiten medidas, posición, nombre, color, duplicado, eliminación e historial.
 - Puertas y ventanas están vinculadas a una pared y generan huecos reales. Conservan la orientación de esa pared. Las puertas parten del suelo; las ventanas tienen alféizar editable. Una pared desactivada oculta sus elementos sin borrarlos.
 - Snap de cuadrícula configurable y snap a paredes, suelo y altura de pared con umbral de 60 mm. El contacto con paredes prevalece sobre la cuadrícula. No existe snap entre objetos libres.
-- Las paredes bloquean el desplazamiento incluso con Snap desactivado. La comprobación incluye todo el recorrido para evitar atravesarlas con movimientos rápidos. Se permite deslizarse por los ejes libres. Puertas y ventanas pueden ocupar su pared, pero no atravesar otras.
+- Las paredes y el techo virtual bloquean el desplazamiento incluso con Snap desactivado. La comprobación incluye todo el recorrido para evitar atravesar estos límites con movimientos rápidos. Se permite deslizarse por los ejes libres. Puertas y ventanas pueden ocupar su pared, pero no atravesar otras.
+- El techo virtual es un plano de colisión a `room.height`, activo independientemente de las paredes y sin geometría visible. Limita toda la envolvente mundial de la pieza; se permite deslizarla horizontalmente en contacto con él. Los tiradores respetan el techo manteniendo fija la cara opuesta; las dimensiones numéricas que lo atraviesan se rechazan. Al bajar la habitación, las piezas se recolocan hacia abajo si caben; si su altura mundial excede la nueva altura, se rechaza la edición. Sin habitación no hay límite superior.
 - Prismas, columnas y vigas giran en XYZ. Durante el giro se permite cualquier ángulo y el tamaño se adapta al máximo disponible entre paredes. Se conserva el grosor/altura si es posible; en situaciones extremas también se adaptan otras medidas. Dentro de la misma operación recuperan tamaño hasta la referencia tomada al comenzar. Un giro y sus cambios de tamaño se deshacen juntos.
 
 ## Preferencias visuales e interacción actuales
@@ -20,7 +21,7 @@ Gridly es un editor web de habitaciones y elementos constructivos en 3D. Funcion
 El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 
 - Contorno cian, seis tiradores cuadrados de tamaño, cotas flotantes editables en mm, control de desplazamiento y triángulo de elevación.
-- Al redimensionar desde una cara, la opuesta permanece fija. El arrastre aplica el paso de Snap y se limita ante suelo/paredes. Las cotas numéricas se confirman con Enter o al perder el foco.
+- Al redimensionar desde una cara, la opuesta permanece fija. El arrastre aplica el paso de Snap y se limita ante suelo, paredes y techo. Las cotas numéricas se confirman con Enter o al perder el foco.
 - Las cotas deben estar por encima de tiradores, iconos y líneas. Se recolocan para evitar solapamientos; su borrador de edición no debe ser sobrescrito por el refresco del visor.
 - Los iconos de giro están anclados a las caras locales: X en la lateral positiva, Y en la superior, Z en la frontal positiva. Están desplazados dentro de la cara respecto al tirador de tamaño. Su posición se proyecta con la cámara, pero no se busca una nueva ubicación según la vista.
 - Los aros están ocultos normalmente. Solo se muestra el correspondiente al icono bajo el cursor o enfocado con teclado; permanece visible durante el arrastre.
@@ -37,12 +38,11 @@ El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 - `useObjectControls.ts` proyecta el overlay cada frame y usa captura de puntero. Desactiva OrbitControls mientras se manipula un objeto. Queda código de TransformControls en el visor, pero su helper está oculto y el control desactivado; la interacción vigente es el overlay.
 - `rotationFit.ts` conserva las dimensiones de referencia durante la operación y adapta hasta un mínimo de 0,001 mm. Las medidas manuales tienen mínimo de 1 mm.
 - Cada cambio de habitación u objetos se autoguarda, incluidos los arrastres, deshacer/rehacer e importaciones. Vue agrupa los cambios de una misma operación y `pagehide` fuerza los pendientes al salir. La recuperación inicial usa la misma validación que Abrir, sin crear un checkpoint. Un autoguardado inválido se conserva hasta que se modifique la escena y se muestra un aviso; si falla el almacenamiento, la edición continúa y el aviso indica guardar JSON.
-- Exportación JSON versión 4, `units: "mm"`, habitación y objetos. Importación de versiones 1, 2, 3 y 4, con validación y rechazo de proyectos que atraviesan paredes.
+- Exportación JSON versión 4, `units: "mm"`, habitación y objetos. Importación de versiones 1, 2, 3 y 4, con validación y rechazo de proyectos que atraviesan paredes o el techo virtual. Los formatos 1–4 se mantienen; una escena antigua por encima del techo se rechaza y su autoguardado se conserva hasta modificar la escena.
 
 ## Limitaciones conocidas
 
 - El autoguardado conserva la última escena en `localStorage` bajo `gridly.autosave`, por navegador y origen (dirección/puerto). No sincroniza entre equipos ni conserva el historial, la cámara o las preferencias de interacción. Borrar los datos del navegador borra esta copia; el JSON sigue siendo el medio de traslado y copia manual.
-- No hay techo de colisión: un objeto puede pasar por encima de las paredes.
 - No hay colisiones entre objetos libres, agrupación, STL, paredes irregulares ni apertura animada de puertas.
 - Las colisiones usan envolventes mundiales conservadoras: pueden limitar antes de tiempo en esquinas con piezas giradas.
 - Los iconos están vinculados a caras positivas fijas; no se intercambian con la cara opuesta al orbitar. En piezas pequeñas o vistas extremas puede ser necesario seguir refinando la separación de controles.
@@ -51,9 +51,9 @@ El usuario pidió controles inspirados en Tinkercad, pegados a la pieza:
 
 ## Validación y continuación
 
-`npm test` ejecuta las ocho suites: habitación, construcción, snap, colisiones, rotación, giro adaptable, redimensionado desde caras y autoguardado. La suite de autoguardado cubre modificaciones, recuperación, versiones 1–4, datos inválidos, cierre y fallos de almacenamiento. `npm run build` comprueba TypeScript y compila.
+`npm test` ejecuta las nueve suites: habitación, construcción, snap, colisiones, rotación, giro adaptable, redimensionado desde caras, autoguardado y techo virtual. La suite de autoguardado cubre modificaciones, recuperación, versiones 1–4, datos inválidos, cierre y fallos de almacenamiento. `npm run build` comprueba TypeScript y compila.
 
-Los iconos de giro mantienen su ubicación en las caras y su comportamiento acordado. El autoguardado se comprobó en el navegador modificando la habitación, el nombre y la anchura de un prisma, y verificando su recuperación al recargar. Con Node 24 y `npm ci`, las ocho suites pasaron y `npm run build` terminó correctamente con el aviso conocido del tamaño del bundle.
+Los iconos de giro mantienen su ubicación en las caras y su comportamiento acordado. El autoguardado se comprobó en el navegador modificando la habitación, el nombre y la anchura de un prisma, y verificando su recuperación al recargar. El techo virtual se comprobó con entrada numérica y arrastre de elevación, ambos con Snap desactivado: un prisma de 600 mm se detiene en Y = 1900 mm bajo una habitación de 2500 mm y muestra el contacto con el techo. Con Node 24 y `npm ci`, las nueve suites pasaron y `npm run build` terminó correctamente con el aviso conocido del tamaño del bundle.
 
 En el equipo nuevo: leer estos archivos, ejecutar `npm ci`, `npm test`, `npm run build` y `npm run dev`. Retomar desde la siguiente petición del usuario; no hay otra funcionalidad pendiente autorizada ni una migración que ejecutar.
 

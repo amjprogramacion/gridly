@@ -2,7 +2,7 @@ import { reactive, computed, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
 import { fitRotation } from './rotationFit.ts'
 import { normalizeAngle } from './geometry.ts'
-import { intersectsWall, limitMovement, fitRoomObject } from './collisions.ts'
+import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'door' | 'window' | 'column' | 'beam'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
@@ -31,7 +31,7 @@ export function createRoom(){const room=defaultRoom(),objects=state.objects.map(
 export function editRoom(key:'width'|'depth'|'height'|'thickness',value:string){
  const n=Number(value);if(!state.room||!Number.isFinite(n)||n<1||n>100000)return
  const room={...state.room,walls:{...state.room.walls},[key]:n},objects=state.objects.map(o=>({...o}))
- if(!prepareRoom(room,objects)){state.error='La habitación no puede tener esas medidas: hay un objeto que no cabe entre las paredes.';return}
+ if(!prepareRoom(room,objects)){state.error='La habitación no puede tener esas medidas: hay un objeto que no cabe entre las paredes o bajo el techo.';return}
  state.room=room;state.objects=objects;state.error='';state.collisionBlocked=false
 }
 export function toggleWall(key:WallSide){if(!state.room)return;const room={...state.room,walls:{...state.room.walls,[key]:!state.room.walls[key]}},objects=state.objects.map(o=>({...o}));if(!prepareRoom(room,objects)){state.error='No se puede activar la pared: hay un objeto demasiado grande. Reduce sus medidas.';return}checkpoint();state.room=room;state.objects=objects;state.error=''}
@@ -51,15 +51,15 @@ export function duplicate(){if(!selected.value)return;checkpoint();const source=
 export function remove(){if(!selected.value)return;checkpoint();state.objects=state.objects.filter(o=>o.id!==state.selected);state.selected=state.room?'room':''}
 export function edit(key:keyof Box,value:string,record=true){
  const o=selected.value;if(!o)return
- if(key==='wall'){if(!state.room||!['north','south','east','west'].includes(value))return;if(record)checkpoint();const candidate={...o,wall:value as WallSide};normalizeOpening(candidate,state.room);if(intersectsWall(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad antes de cambiar de pared.';return}Object.assign(o,candidate);return}
+ if(key==='wall'){if(!state.room||!['north','south','east','west'].includes(value))return;if(record)checkpoint();const candidate={...o,wall:value as WallSide};normalizeOpening(candidate,state.room);if(intersectsRoom(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad antes de cambiar de pared.';return}Object.assign(o,candidate);return}
  if(key==='name'||key==='color'){if(record)checkpoint();Object.assign(o,{[key]:value});return}
  const n=Number(value);if(!value.trim()||!Number.isFinite(n)||Math.abs(n)>100000||(['width','height','depth'].includes(key)&&n<1))return
  if(key==='rotationX'||key==='rotationY'||key==='rotationZ'){rotateSelected({...o,[key]:n},record);return}
  const candidate={...o,[key]:key==='y'?Math.max(0,n):n}
  if(isOpening(candidate)&&state.room)normalizeOpening(candidate,state.room)
  else if(key==='x'||key==='y'||key==='z'){if(record)checkpoint();applyMovement(o,candidate);return}
- else if(intersectsWall(candidate,state.room)){state.error='Estas dimensiones harían que el objeto atravesase una pared. Reduce su tamaño o muévelo.';return}
- if(intersectsWall(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad.';return}if(record)checkpoint();Object.assign(o,candidate);state.error='';state.collisionBlocked=false
+ else if(intersectsRoom(candidate,state.room)){state.error='Estas dimensiones harían que el objeto atravesase una pared o el techo. Reduce su tamaño o muévelo.';return}
+ if(intersectsRoom(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad.';return}if(record)checkpoint();Object.assign(o,candidate);state.error='';state.collisionBlocked=false
 }
 let rotationReference:Box|null=null
 export function beginRotation(){checkpoint();rotationReference=selected.value?{...selected.value}:null}
@@ -74,7 +74,7 @@ export function resizeSelectedFromFace(original:Box,key:DimensionKey,size:number
  const o=selected.value;if(!o||o.id!==original.id)return
  if(state.snap)size=Math.round(size/state.step)*state.step
  const make=(value:number)=>{const candidate=resizedFromFace(original,key,value,sign,direction);if(state.room&&isOpening(candidate))normalizeOpening(candidate,state.room);return candidate}
- const valid=(candidate:Box)=>candidate.y>=-1e-7&&!intersectsWall(candidate,state.room)
+ const valid=(candidate:Box)=>candidate.y>=-1e-7&&!intersectsRoom(candidate,state.room)
  let candidate=make(size)
  if(!valid(candidate)){let low=0,high=1;for(let i=0;i<40;i++){const mid=(low+high)/2;if(valid(make(original[key]+(size-original[key])*mid)))low=mid;else high=mid}candidate=make(original[key]+(size-original[key])*low);state.collisionBlocked=true}else state.collisionBlocked=false
  candidate.y=Math.max(0,candidate.y);Object.assign(o,candidate);state.error=''
@@ -90,12 +90,12 @@ function parseProject(value:string):{room:Room|null;objects:Box[]}{
  const data=JSON.parse(value);if(![1,2,3,4].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
  const ids=new Set(['room']);for(const o of data.objects){if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'])if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'])if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
- if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsWall(o,room)))throw Error('collision')}
+ if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsRoom(o,room)))throw Error('collision')}
  return {room,objects:data.objects}
 }
 export async function load(file:File){try{
  const {room,objects}=parseProject(await file.text());checkpoint();state.objects=objects;state.room=room;state.selected=room?'room':'';state.error=''
- }catch(error){state.error=error instanceof Error&&error.message==='collision'?'El proyecto contiene objetos que atraviesan paredes. Corrige sus posiciones antes de abrirlo.':'No se pudo abrir el archivo. Usa un proyecto JSON de Gridly válido.'}}
+ }catch(error){state.error=error instanceof Error&&error.message==='collision'?'El proyecto contiene objetos que atraviesan paredes o el techo. Corrige sus posiciones antes de abrirlo.':'No se pudo abrir el archivo. Usa un proyecto JSON de Gridly válido.'}}
 
 
 export const AUTOSAVE_KEY='gridly.autosave'
