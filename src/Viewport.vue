@@ -21,7 +21,7 @@ function piece(parent:T.Object3D,w:number,h:number,d:number,x:number,y:number,z:
  const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color,roughness:glass?.15:.8,transparent:glass,opacity:glass?.3:1,depthWrite:!glass}));mesh.position.set(x,y,z);mesh.castShadow=!glass;mesh.receiveShadow=true;mesh.userData.id=id;parent.add(mesh);return mesh
 }
 function syncRoom(){
- const signature=JSON.stringify([state.room,state.objects.filter(isOpening)]);if(signature===roomSignature)return;roomSignature=signature
+ const signature=JSON.stringify([state.room,state.structuralColor,state.objects.filter(isOpening)]);if(signature===roomSignature)return;roomSignature=signature
  for(const child of [...roomGroup.children]){roomGroup.remove(child);dispose(child)}roomWalls.length=0
  if(!state.room)return
  const r=state.room,w=r.width/1000,d=r.depth/1000,t=r.thickness/1000
@@ -29,7 +29,7 @@ function syncRoom(){
  for(const side of Object.keys(r.walls) as WallSide[]){if(!r.walls[side])continue;const horizontal=side==='north'||side==='south';const length=horizontal?r.width:r.depth;for(const panel of wallPanels(r,side,state.objects)){
  const along=(panel.start+panel.width/2-length/2)/1000,bottom=(panel.bottom+panel.height/2)/1000
  const x=horizontal?along:(side==='west'?-1:1)*(w+t)/2,z=horizontal?(side==='north'?-1:1)*(d+t)/2:along
- const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,'#526171','room');roomWalls.push({mesh,normal:normals[side]})
+ const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,state.structuralColor,'room');roomWalls.push({mesh,normal:normals[side]})
  }}
 }
 function buildObject(o:Box){
@@ -72,7 +72,7 @@ onMounted(()=>{try{
  observer=new ResizeObserver(()=>{const {clientWidth:w,clientHeight:h}=host.value!;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)});observer.observe(host.value!);sync()
  renderer.setAnimationLoop(()=>{orbit.update();for(const wall of roomWalls)wall.mesh.visible=wall.normal.dot(camera.position.clone().sub(wall.mesh.position))<=0;for(const o of state.objects){const mesh=meshes.get(o.id);if(mesh)mesh.visible=!isOpening(o)||!!state.room?.walls[o.wall!]&&(normals[o.wall!].dot(camera.position.clone().sub(mesh.position))<=0||o.id===state.selected)}controls.update(camera,meshes.get(state.selected),host.value!.clientWidth,host.value!.clientHeight,host.value!.getBoundingClientRect());renderer.render(scene,camera)})
  }catch(e){console.error(e);error.value='No se pudo iniciar el visor 3D. Comprueba que WebGL esté habilitado en tu navegador.'}})
-watch(()=>[state.objects,state.room,state.selected,state.snap,state.wallSnap,state.step,state.transformMode],sync,{deep:true})
+watch(()=>[state.objects,state.room,state.structuralColor,state.selected,state.snap,state.wallSnap,state.step,state.transformMode],sync,{deep:true})
 onBeforeUnmount(()=>{observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();dispose(scene);renderer?.dispose()})
 </script>
 <template><div ref="host" class="viewport"><p v-if="error" class="viewport-error">{{error}}</p><div v-if="overlay?.visible" class="object-controls" @pointermove="controls.move" @pointerup="controls.finish" @pointercancel="controls.finish" @lostpointercapture="controls.finish">

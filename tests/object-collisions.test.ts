@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { nextTick } from 'vue'
-import { collisionPeers, overlaps, intersectsObjects, hasObjectCollisions } from '../src/objectCollisions.ts'
+import { isStructural, collisionPeers, overlaps, intersectsObjects, hasObjectCollisions } from '../src/objectCollisions.ts'
 import { limitMovement, intersectsRoom } from '../src/collisions.ts'
 import { state, selected, collisionSelection, defaultRoom, add, duplicate, edit, moveSelected, normalizeOpening, toggleCollisions, toggleSelectedCollisions, undo, redo, resizeSelectedFromFace, rotateSelected, editRoom, load, projectJSON, startAutosave, history } from '../src/editor.ts'
 import type { Box, ObjectKind } from '../src/editor.ts'
@@ -12,9 +12,9 @@ assert.equal(overlaps({...box,x:-599},obstacle),true)
 for(const type of ['box','column','beam','door','window'] as ObjectKind[]){
  const peer={...obstacle,type,wall:'north' as const,offset:2000}
  assert.equal(intersectsObjects({...box,x:0},[peer],room,true),true)
- assert.equal(intersectsObjects({...box,x:0,collisions:false},[peer],room,true),false)
- assert.equal(intersectsObjects({...box,x:0},[{...peer,collisions:false}],room,true),false)
- assert.equal(intersectsObjects({...box,x:0},[peer],room,false),false)
+ assert.equal(intersectsObjects({...box,x:0,collisions:false},[peer],room,true),isStructural(peer))
+ assert.equal(intersectsObjects({...box,x:0},[{...peer,collisions:false}],room,true),isStructural(peer))
+ assert.equal(intersectsObjects({...box,x:0},[peer],room,false),isStructural(peer))
 }
 assert.equal(collisionPeers(box,[box,obstacle],room,true).length,1)
 assert.equal(collisionPeers(box,[{...obstacle,type:'door',wall:'north'}],{...room,walls:{...room.walls,north:false}},true).length,0)
