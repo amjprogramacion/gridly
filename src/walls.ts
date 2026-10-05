@@ -10,3 +10,17 @@ export function wallPanels(room:Room,side:WallSide,objects:Box[]):WallPanel[]{
  for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++){const left=xs[i]!,right=xs[i+1]!,bottom=ys[j]!,top=ys[j+1]!,cx=(left+right)/2,cy=(bottom+top)/2;if(right<=left||top<=bottom||openings.some(o=>cx>o.left&&cx<o.right&&cy>o.bottom&&cy<o.top))continue;panels.push({start:left,bottom,width:right-left,height:top-bottom})}
  return panels
 }
+
+// Camera-only cutaway: keep corner fillers only while their adjoining wall is visible.
+export function visibleWallSides(room:Room,camera:{x:number;z:number}):Record<WallSide,boolean>{
+ const x=(room.width+room.thickness)/2,z=(room.depth+room.thickness)/2
+ return {north:room.walls.north&&camera.z>=-z,south:room.walls.south&&camera.z<=z,west:room.walls.west&&camera.x>=-x,east:room.walls.east&&camera.x<=x}
+}
+export function wallPanelVisible(room:Room,side:WallSide,panel:WallPanel,visible:Record<WallSide,boolean>){
+ if(!visible[side])return false
+ if(side==='north'||side==='south'){
+  if(panel.start<0)return visible.west
+  if(panel.start>=room.width)return visible.east
+ }
+ return true
+}

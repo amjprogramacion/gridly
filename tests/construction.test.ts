@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { state, add, edit, editRoom, checkpoint, undo, redo, load, save, defaultRoom, normalizeOpening } from '../src/editor.ts'
 state.collisions=false
-import { wallPanels } from '../src/walls.ts'
+import { wallPanels, visibleWallSides, wallPanelVisible } from '../src/walls.ts'
 state.room=defaultRoom();state.objects=[]
 add('door');const door=state.objects[0]!;assert.equal(door.type,'door');assert.equal(door.z,-1810);assert.equal(door.y,0)
 edit('width','1100');edit('offset','800');assert.equal(door.width,1100);assert.equal(door.x,-1200)
@@ -28,3 +28,22 @@ const overlapA={...project.objects[0],wall:'north' as const,offset:1500,width:10
 const overlapB={...overlapA,id:'other',offset:1800}
 assert.equal(wallPanels(overlapRoom,'north',[overlapA,overlapB]).reduce((sum,p)=>sum+p.width*p.height,0),4240*2500-1300*2100)
 
+
+// Hidden or disabled adjoining walls must leave no corner filler at the exposed end.
+const cutawayRoom=defaultRoom(),wholeWall=wallPanels(cutawayRoom,'north',[])
+for(const x of [-10000,0,10000]){
+ const visible=visibleWallSides(cutawayRoom,{x,z:10000})
+ const drawn=wholeWall.filter(panel=>wallPanelVisible(cutawayRoom,'north',panel,visible))
+ assert.equal(drawn.reduce((sum,panel)=>sum+panel.width,0),4000+(x>=-2060?120:0)+(x<=2060?120:0))
+ assert.equal(drawn.some(panel=>panel.start<0),visible.west)
+ assert.equal(drawn.some(panel=>panel.start>=4000),visible.east)
+ assert.equal(wallPanelVisible(cutawayRoom,'south',wholeWall[0]!,visible),false)
+}
+const disabled={...cutawayRoom,walls:{...cutawayRoom.walls,west:false,east:false}}
+const disabledVisible=visibleWallSides(disabled,{x:0,z:0})
+assert.equal(wholeWall.filter(panel=>wallPanelVisible(disabled,'north',panel,disabledVisible)).reduce((sum,panel)=>sum+panel.width,0),4000)
+// Removing camera-only fillers leaves the opening's original cells unchanged.
+const opened=wallPanels(cutawayRoom,'north',[overlapA])
+const cutaway=visibleWallSides(disabled,{x:0,z:0})
+assert.equal(opened.filter(panel=>wallPanelVisible(cutawayRoom,'north',panel,cutaway)).reduce((sum,panel)=>sum+panel.width*panel.height,0),4000*2500-1000*2100)
+console.log('Wall cutaway: visible corner joins, hidden/disabled neighbours and opening preservation passed.')

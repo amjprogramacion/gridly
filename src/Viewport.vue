@@ -6,7 +6,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { state, selected, selection, selectObject, checkpoint, isOpening, moveSelected, rotateSelected, beginRotation, endRotation, type Box, type WallSide } from './editor'
 import { groupChildren } from './groups'
 import { worldDimensions } from './geometry'
-import { wallPanels } from './walls'
+import { wallPanels, visibleWallSides, wallPanelVisible, type WallPanel } from './walls'
 import { useObjectControls } from './useObjectControls'
 import { createCameraMotion } from './cameraMotion'
 import { projectSelectionOutline } from './selectionOutline'
@@ -18,7 +18,7 @@ const trackCameraMotion=createCameraMotion(),previousCameraPosition=new T.Vector
 const controls=useObjectControls(active=>{if(orbit)orbit.enabled=!active});const overlay=controls.overlay
 let renderer:T.WebGLRenderer,orbit:OrbitControls,transform:TransformControls,observer:ResizeObserver,camera:T.PerspectiveCamera
 const scene=new T.Scene(),roomGroup=new T.Group();scene.add(roomGroup)
-const roomWalls:{mesh:T.Mesh;normal:T.Vector3}[]=[]
+const roomWalls:{mesh:T.Mesh;side:WallSide;panel:WallPanel}[]=[]
 const normals:Record<WallSide,T.Vector3>={north:new T.Vector3(0,0,-1),south:new T.Vector3(0,0,1),west:new T.Vector3(-1,0,0),east:new T.Vector3(1,0,0)}
 let roomSignature='',syncing=false
 const meshes=new Map<string,T.Group>();const signatures=new Map<string,string>()
@@ -35,7 +35,7 @@ function syncRoom(){
  for(const side of Object.keys(r.walls) as WallSide[]){if(!r.walls[side])continue;const horizontal=side==='north'||side==='south';const length=horizontal?r.width:r.depth;for(const panel of wallPanels(r,side,state.objects)){
  const along=(panel.start+panel.width/2-length/2)/1000,bottom=(panel.bottom+panel.height/2)/1000
  const x=horizontal?along:(side==='west'?-1:1)*(w+t)/2,z=horizontal?(side==='north'?-1:1)*(d+t)/2:along
- const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,state.structuralColor,'room');roomWalls.push({mesh,normal:normals[side]})
+ const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,state.structuralColor,'room');roomWalls.push({mesh,side,panel})
  }}
 }
 function buildObject(o:Box){
@@ -85,7 +85,7 @@ onMounted(()=>{try{
  const translation=previousCameraPosition.distanceTo(camera.position)/distance,rotation=2*Math.acos(Math.min(1,Math.abs(previousCameraRotation.dot(camera.quaternion))))
  cameraMoving.value=trackCameraMotion(cameraInteracting,Math.max(translation,rotation)*pixelScale*(1000/60)/frameMs)
  previousCameraPosition.copy(camera.position);previousCameraRotation.copy(camera.quaternion)
- for(const wall of roomWalls)wall.mesh.visible=wall.normal.dot(camera.position.clone().sub(wall.mesh.position))<=0;for(const o of state.objects){const mesh=meshes.get(o.id);if(mesh)mesh.visible=!isOpening(o)||!!state.room?.walls[o.wall!]&&(normals[o.wall!].dot(camera.position.clone().sub(mesh.position))<=0||selection.value.some(item=>item.id===o.id))}
+ if(state.room){const visible=visibleWallSides(state.room,{x:camera.position.x*1000,z:camera.position.z*1000});for(const wall of roomWalls)wall.mesh.visible=wallPanelVisible(state.room,wall.side,wall.panel,visible);}for(const o of state.objects){const mesh=meshes.get(o.id);if(mesh)mesh.visible=!isOpening(o)||!!state.room?.walls[o.wall!]&&(normals[o.wall!].dot(camera.position.clone().sub(mesh.position))<=0||selection.value.some(item=>item.id===o.id))}
  if(!cameraMoving.value)additionalOutlines.value=selection.value.filter(o=>o.id!==state.selected&&meshes.get(o.id)?.visible).map(o=>({id:o.id,path:projectSelectionOutline(o,meshes.get(o.id)!,camera,host.value!.clientWidth,host.value!.clientHeight)}))
  controls.update(camera,meshes.get(state.selected),host.value!.clientWidth,host.value!.clientHeight,host.value!.getBoundingClientRect());renderer.render(scene,camera)})
  }catch(e){console.error(e);error.value='No se pudo iniciar el visor 3D. Comprueba que WebGL esté habilitado en tu navegador.'}})
