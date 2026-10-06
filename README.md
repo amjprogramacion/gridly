@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las catorce suites del modelo
+npm test        # Ejecutar las quince suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -24,7 +24,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 ## Funcionalidades
 
 - Habitación rectangular con medidas interiores, altura, grosor y paredes activables. Las paredes próximas a la cámara se ocultan para ver el interior.
-- Prismas, puertas, ventanas, columnas y vigas con posición, dimensiones y nombre editables. Color individual para prismas y marcos; color común para paredes, vigas y columnas.
+- Prismas, cilindros, puertas, ventanas, columnas y vigas con posición, dimensiones y nombre editables. Color individual para prismas y marcos; color común para paredes, vigas y columnas.
 - Puertas y ventanas vinculadas a paredes, con huecos reales y alféizar editable en ventanas.
 - Snap a cuadrícula y a paredes, suelo y altura de la habitación.
 - Colisiones entre elementos con interruptor general y por pieza para prismas, puertas y ventanas; vigas y columnas con colisiones obligatorias contra otros tipos, permitiendo solaparse entre sí.
@@ -37,7 +37,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 
 ## Uso
 
-Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad y Altura de la habitación y mostrar en la barra lateral los botones de Puerta, Ventana, Columna, Viga y **Rodapié**. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
+Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad y Altura de la habitación y mostrar en la barra lateral los botones de Puerta, Ventana, Columna, Viga y **Rodapié**. Fuera de ese modo, **Muebles** permite añadir Prisma o Cilindro; **Personalizado** está reservado para una función pendiente. La lista de piezas aparece en una tarjeta independiente y se filtra según el modo. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
 
 El rodapié es un acabado blanco de 80 × 12 mm que recorre todas las paredes activas, incluso las ocultas por cámara, y respeta los huecos de las puertas. Se adapta a las medidas de la estancia y se guarda con el proyecto. El mismo botón permite quitarlo. Es decorativo y no añade colisiones.
 

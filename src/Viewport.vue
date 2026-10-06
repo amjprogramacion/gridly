@@ -50,6 +50,7 @@ function syncRoom(){
 function buildObject(o:Box){
  const group=new T.Group();group.userData.id=o.id
  if(o.type==='group'){for(const child of groupChildren({...o,x:0,y:0,z:0,rotationX:0,rotationY:0,rotationZ:0})){const mesh=buildObject(child);mesh.position.set(child.x/1000,(child.y+worldDimensions(child).height/2-o.height/2)/1000,child.z/1000);mesh.rotation.set(T.MathUtils.degToRad(child.rotationX??0),T.MathUtils.degToRad(child.rotationY??0),T.MathUtils.degToRad(child.rotationZ??0),'XYZ');mesh.traverse(node=>{node.userData.id=o.id});group.add(mesh)}return group}
+ if(o.type==='cylinder'){const mesh=new T.Mesh(new T.CylinderGeometry(.5,.5,1,48),new T.MeshStandardMaterial({color:o.color,roughness:.8}));mesh.scale.set(o.width/1000,o.height/1000,o.depth/1000);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.id=o.id;group.add(mesh);return group}
  if(!isOpening(o)){piece(group,o.width/1000,o.height/1000,o.depth/1000,0,0,0,o.color,o.id);return group}
  const w=o.width/1000,h=o.height/1000,d=o.depth/1000,f=Math.min(.06,w/8,h/8)
  piece(group,f,h,d,-(w-f)/2,h/2,0,o.color,o.id);piece(group,f,h,d,(w-f)/2,h/2,0,o.color,o.id);piece(group,w-2*f,f,d,0,h-f/2,0,o.color,o.id)

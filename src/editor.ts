@@ -6,11 +6,11 @@ import { isStructural, hasObjectCollisions, intersectsObjects, objectBounds, col
 import { worldDimensions, normalizeAngle } from './geometry.ts'
 import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
-export type ObjectKind = 'box' | 'door' | 'window' | 'column' | 'beam' | 'group'
+export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
 export interface Box { children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface Room { floorColor?:string; baseboard?:boolean; width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
-export const labels:Record<ObjectKind,string>={box:'Prisma',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga',group:'Grupo'}
+export const labels:Record<ObjectKind,string>={box:'Prisma',cylinder:'Cilindro',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga',group:'Grupo'}
 export const defaultRoom=():Room=>({width:4000,depth:3500,height:2500,thickness:120,walls:{north:true,south:true,east:true,west:true}})
 export const WALL_COLOR='#526171'
 export const FLOOR_COLOR='#34404b'

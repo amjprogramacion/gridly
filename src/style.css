@@ -51,3 +51,9 @@
 .objects-panel>.construction-title:first-child{margin-top:0}
 
 .color-palette .surface-color-target{grid-column:1/-1;display:flex;gap:8px}.color-palette .surface-color-target button{flex:1;width:auto;height:auto;font-size:12px;padding:8px 12px;border-radius:20px}.color-palette .surface-color-target button[aria-pressed=true]{background:#dedede}
+
+.workspace>.objects-panel{padding:0;background:transparent;border:0;box-shadow:none;overflow:visible;gap:16px;align-self:start;max-height:calc(100% - 120px)}
+.sidebar-card{padding:25px 20px;background:#19222d;border:1px solid #303b49;border-radius:var(--floating-panel-radius);box-shadow:0 6px 24px #0003;min-height:0}
+.sidebar-card .construction-title{margin-top:0}.add-shapes-card{flex-shrink:0}.existing-shapes-card{overflow:auto;scrollbar-width:thin}.existing-shapes-card .object-list{margin-top:0;max-height:none;overflow:visible}.existing-shapes-card .muted{margin:0}
+.construction-buttons .custom-shape-button{display:flex;align-items:center;gap:8px;border-style:dashed;border-color:#9384b3;background:#302b40;color:#d2c4ee;opacity:.65}.construction-buttons .custom-shape-button svg{width:18px;height:18px;flex-shrink:0}.construction-buttons .custom-shape-button span{color:inherit;font-size:11px;margin:0}
+@media(max-width:760px){.workspace>.objects-panel{padding:0;max-height:none}.existing-shapes-card{max-height:220px}}
