@@ -64,3 +64,4 @@
 @media(max-width:760px){header:has(.custom-name-editor){height:auto;min-height:56px;flex-wrap:wrap;padding:12px 14px}.custom-name-editor{flex-wrap:wrap;width:100%;margin:0}.custom-name-editor input{flex:1;width:100%;min-width:140px}.custom-library-dialog{padding:22px}.custom-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .custom-library-card{position:relative;min-width:0}.custom-library-card .custom-library-item{width:100%;height:100%}.edit-custom-button{position:absolute;top:18px;right:18px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:7px;border-radius:50%;background:#25313fee;box-shadow:0 2px 8px #0004}.edit-custom-button svg{width:18px;height:18px;pointer-events:none}
+.workspace>.workshop-properties{align-self:start;max-height:calc(100% - 120px)}.workshop-properties h2{margin-top:0;overflow-wrap:anywhere}.workshop-property-block h3{margin-top:18px}.workshop-property-block .field{margin-top:10px}

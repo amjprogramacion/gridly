@@ -51,7 +51,7 @@ El icono de muestras de la barra inferior abre una paleta para la pieza seleccio
 
 La paleta inferior cambia en bloque el color de paredes, vigas y columnas al seleccionar la estructura; el panel derecho no muestra ese selector. Comparten siempre ese color, independientemente del snap, desde su creación o importación. El ajuste se guarda con el proyecto y admite deshacer/rehacer. Los archivos anteriores sin este ajuste usan `#526171`.
 
-Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. Arrastra desde cualquier punto de una pieza para moverla sobre un plano horizontal. La base muestra el mismo tirador cuadrado de tamaño que las demás caras. El triángulo la eleva. Un clic simple selecciona; Ctrl/Cmd o Mayús + clic conserva la selección múltiple. Escribe en una cota flotante y confirma con Enter o al salir del campo. El panel derecho se abre únicamente con **Editar estancia** y muestra esas tres medidas de la habitación. Las piezas conservan sus cotas y controles en el visor.
+Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. Arrastra desde cualquier punto de una pieza para moverla sobre un plano horizontal. La base muestra el mismo tirador cuadrado de tamaño que las demás caras. El triángulo la eleva. Un clic simple selecciona; Ctrl/Cmd o Mayús + clic conserva la selección múltiple. Escribe en una cota flotante y confirma con Enter o al salir del campo. En la habitación, el panel derecho se abre únicamente con **Editar estancia** y muestra esas tres medidas de la habitación. Las piezas conservan sus cotas y controles en el visor.
 
 Los controles de giro son flechas curvas de doble punta, sin recuadro, orientadas según su plano de rotación. X aparece sobre un extremo superior, Z sobre el centro del borde superior y Y junto a la esquina cercana de la base. Las flechas son grises y muestran el color del eje al pasar el cursor; sus curvas mantienen la orientación de su plano al orbitar. Arrastra siguiendo la dirección del aro para girar. Durante una misma operación, la pieza reduce su tamaño si lo necesita y lo recupera cuando vuelve a caber, hasta las medidas iniciales de esa operación.
 
@@ -76,7 +76,11 @@ Para la cámara: arrastra desde el espacio libre para orbitar, usa el botón der
 
 Pulsa **Personalizado** y **Crear objeto personalizado** para abrir un plano limpio con suelo y rejilla. Añade prismas y cilindros, ajusta sus tamaños, posiciones, giros y colores, y combínalos como prefieras. Las piezas pueden solaparse en este taller.
 
+El constructor muestra los ejes XYZ en el origen **(0, 0, 0)**. Al seleccionar una pieza, el panel derecho muestra dos bloques: **Tamaño** (anchura, altura y profundidad) y **Posición** (X, Y y Z), con medidas en milímetros. Enter o salir del campo confirma la edición; admite deshacer y se actualiza al arrastrar la pieza. X y Z indican el centro horizontal y Y el punto más bajo.
+
 Junto al selector de perspectiva, el selector **Snap** permite ajustar movimientos y tamaños en pasos de **5, 10, 50 o 100 mm**, o deshabilitar el ajuste. Con Snap activo, los giros mantienen pasos de 15°. Al salir del constructor se recupera el ajuste de la habitación.
+
+Las flechas mueven la selección un paso de Snap por pulsación: en direcciones relativas a la cámara sobre el plano horizontal, conservando la altura. Cada pulsación modifica únicamente X o Z: se elige el eje más cercano a la dirección en pantalla, sin desplazamientos diagonales. Con Snap deshabilitado, el paso es 1 mm. Los campos de entrada conservan su uso habitual de las flechas.
 
 Escribe un nombre en la cabecera y pulsa **Guardar objeto**. Volverás a la habitación con la biblioteca abierta y una miniatura de la forma; púlsala para insertar una copia. Si no cabe, aparece un aviso dentro del modal. Varias piezas se insertan como un grupo con escala proporcional. **Volver a la habitación** cancela el borrador actual.
 

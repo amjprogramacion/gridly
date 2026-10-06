@@ -209,6 +209,14 @@ export function resizeSelectedFromFace(original:Box,key:DimensionKey,size:number
  if(!valid(candidate)){let low=0,high=1;for(let i=0;i<40;i++){const mid=(low+high)/2;if(valid(make(original[key]+(size-original[key])*mid)))low=mid;else high=mid}candidate=make(original[key]+(size-original[key])*low);state.collisionBlocked=true}else state.collisionBlocked=false
  candidate.y=Math.max(0,candidate.y);Object.assign(o,candidate);state.error=''
 }
+export function nudgeWorkshopSelection(direction:{x:number;z:number}){
+ if(!customEditing.value||!selection.value.length)return
+ const length=Math.hypot(direction.x,direction.z);if(!Number.isFinite(length)||length<1e-8)return
+ const step=state.snap?state.step:1
+ const dx=Math.abs(direction.x)>=Math.abs(direction.z)?Math.sign(direction.x)*step:0,dz=dx===0?Math.sign(direction.z)*step:0
+ checkpoint()
+ for(const object of selection.value)applyMovement(object,{x:object.x+dx,y:object.y,z:object.z+dz})
+}
 export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z']){
  const o=selected.value;if(!o)return
  const {position}=snapPosition(o,state.room,state.objects,{x,y,z},{enabled:state.snap,walls:state.wallSnap,step:state.step,axes})

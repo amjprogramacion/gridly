@@ -10,6 +10,8 @@ import { baseboardPanels, BASEBOARD_DEPTH, wallPanels, visibleWallSides, wallPan
 import { useObjectControls } from './useObjectControls'
 import { createCameraMotion } from './cameraMotion'
 import { projectSelectionOutline } from './selectionOutline'
+import { cameraArrowDirection } from './keyboardMovement'
+import { nudgeWorkshopSelection } from './editor'
 import type { Axis } from './snapping'
 const props=withDefaults(defineProps<{editableObjectIds:string[];workshop?:boolean}>(),{workshop:false})
 const host=ref<HTMLDivElement>();const error=ref('');const cameraMoving=ref(false)
@@ -22,6 +24,9 @@ const scene=new T.Scene(),roomGroup=new T.Group();scene.add(roomGroup)
 const roomWalls:{mesh:T.Mesh;side:WallSide;panel:WallPanel}[]=[]
 const normals:Record<WallSide,T.Vector3>={north:new T.Vector3(0,0,-1),south:new T.Vector3(0,0,1),west:new T.Vector3(-1,0,0),east:new T.Vector3(1,0,0)}
 let workFloor:T.Mesh,workGrid:T.GridHelper
+const workshopAxes=new T.AxesHelper(1.2);workshopAxes.visible=props.workshop;workshopAxes.renderOrder=10
+workshopAxes.setColors('#ee6c6c','#86ce73','#68a8ef')
+for(const material of Array.isArray(workshopAxes.material)?workshopAxes.material:[workshopAxes.material]){material.depthTest=false;material.depthWrite=false}scene.add(workshopAxes)
 let roomCamera:{position:T.Vector3;target:T.Vector3}|null=null
 let roomFloor:T.Mesh|undefined
 let roomSignature='',syncing=false
@@ -80,7 +85,13 @@ function sync(){if(!transform)return;syncing=true;syncRoom()
  transform.setTranslationSnap(null);transform.enabled=false;transform.getHelper().visible=false;syncing=false
 }
 function view(name:string){if(!camera)return;const size=props.workshop?2.5:state.room?Math.max(state.room.width,state.room.depth,state.room.height)/1000:4,distance=Math.max(5,size*2),center=state.room?state.room.height/2000:.6;orbit.target.set(0,center,0);const positions:Record<string,number[]>={Perspectiva:[distance*.7,distance*.65,distance*.9],Superior:[0,distance*1.3,.001],Frontal:[0,center,distance*1.3],Lateral:[distance*1.3,center,0]};camera.position.fromArray(positions[name]!);orbit.update()}
-defineExpose({view})
+function nudge(key:string){
+ if(!camera||!props.workshop)return
+ camera.updateMatrixWorld()
+ const right=new T.Vector3().setFromMatrixColumn(camera.matrixWorld,0),direction=cameraArrowDirection(key,right)
+ if(direction)nudgeWorkshopSelection(direction)
+}
+defineExpose({view,nudge})
 onMounted(()=>{try{
  renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.setClearColor('#141a23');host.value!.appendChild(renderer.domElement)
  camera=new T.PerspectiveCamera(42,1,.01,500);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.addEventListener('start',()=>{cameraInteracting=true;cameraMoving.value=true;controls.rotationInteraction.hovered=null});orbit.addEventListener('end',()=>{cameraInteracting=false});view('Perspectiva');previousCameraPosition.copy(camera.position);previousCameraRotation.copy(camera.quaternion);scene.add(new T.HemisphereLight(0xffffff,0x263346,2.8))
@@ -150,6 +161,7 @@ onMounted(()=>{try{
  }catch(e){console.error(e);error.value='No se pudo iniciar el visor 3D. Comprueba que WebGL esté habilitado en tu navegador.'}})
 watch(()=>[state.objects,state.room,state.structuralColor,state.selected,state.selection,state.snap,state.wallSnap,state.step,state.transformMode],sync,{deep:true})
 watch(()=>props.workshop,workshop=>{
+ workshopAxes.visible=workshop
  if(!camera)return
  const colors=workGrid.geometry.getAttribute('color'),gridColor=new T.Color(workshop?'#53677d':'#263344');for(let i=0;i<colors.count;i++)colors.setXYZ(i,gridColor.r,gridColor.g,gridColor.b);colors.needsUpdate=true
  workFloor.position.y=workshop?-.003:-.06;workGrid.position.y=workshop?-.001:-.055
@@ -157,7 +169,7 @@ watch(()=>props.workshop,workshop=>{
  else if(roomCamera){camera.position.copy(roomCamera.position);orbit.target.copy(roomCamera.target);orbit.update();roomCamera=null}else view('Perspectiva')
 })
 
-onBeforeUnmount(()=>{controls.finish();observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();dispose(scene);renderer?.dispose()})
+onBeforeUnmount(()=>{controls.finish();observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();workshopAxes.dispose();dispose(scene);renderer?.dispose()})
 </script>
 <template><div ref="host" class="viewport"><p v-if="error" class="viewport-error">{{error}}</p><div v-if="additionalOutlines.length" v-show="!cameraMoving" class="object-controls" aria-hidden="true"><svg class="object-dimensions" width="100%" height="100%"><path v-for="outline in additionalOutlines" :key="outline.id" :d="outline.path" :data-object-id="outline.id" class="selection-outline"/></svg></div><div v-if="overlay?.visible" v-show="!cameraMoving" class="object-controls" @pointermove="controls.move" @pointerup="controls.finish" @pointercancel="controls.finish" @lostpointercapture="controls.finish">
 <svg class="object-dimensions" width="100%" height="100%" aria-hidden="true"><defs><marker id="dimension-arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0 0L6 3L0 6Z" fill="#aabed0"/></marker></defs><path :d="overlay.outline" :data-object-id="state.selected" class="selection-outline"/><line v-for="measure in overlay.measures" :key="measure.key" :x1="measure.start.x" :y1="measure.start.y" :x2="measure.end.x" :y2="measure.end.y" class="dimension-line" marker-start="url(#dimension-arrow)" marker-end="url(#dimension-arrow)"/><line v-for="measure in overlay.measures" :key="measure.key+'leader'" :x1="(measure.start.x+measure.end.x)/2" :y1="(measure.start.y+measure.end.y)/2" :x2="measure.point.x" :y2="measure.point.y" class="dimension-leader"/></svg>
