@@ -119,15 +119,36 @@ function findPlacement(object:Box):Box|null{
  }
  return null
 }
-export function duplicate(){
- if(!selected.value)return
- const source=selected.value,box={...cloneObject(source,true),id:crypto.randomUUID(),name:source.name+' copia'}
- if(isOpening(box)&&state.room){box.offset=(box.offset??0)+box.width+100;normalizeOpening(box,state.room)}
- else Object.assign(box,limitMovement(source,state.room,{x:source.x+200,y:source.y,z:source.z+200}).position)
- const placed=findPlacement(box)
- if(!placed){state.error='No se encontró espacio libre para duplicar este elemento.';return}
- checkpoint();state.objects.push(placed);state.selected=placed.id;state.error='';state.collisionBlocked=false
+let copiedObjects:Box[]=[]
+export function copySelection(){if(!selection.value.length)return false;copiedObjects=selection.value.map(object=>cloneObject(object));return true}
+function pasteCopies(sources:Box[],allowedTypes?:ObjectKind[]){
+ if(!sources.length)return false
+ if(allowedTypes&&sources.some(object=>!allowedTypes.includes(object.type??'box'))){state.error='Los elementos copiados pertenecen al otro modo de edición.';return false}
+ if(sources.some(isOpening)&&!state.room){state.error='Las puertas y ventanas necesitan una habitación.';return false}
+ const copies=sources.map(source=>({...cloneObject(source,true),name:source.name+' copia'}))
+ recolorStructure(copies,state.structuralColor)
+ try{validateGroups([...state.objects,...copies])}catch{state.error='La copia supera el límite de piezas o grupos del proyecto.';return false}
+ const bounds=sources.map(objectBounds),min={x:Math.min(...bounds.map(b=>b.min.x)),y:Math.min(...bounds.map(b=>b.min.y)),z:Math.min(...bounds.map(b=>b.min.z))},max={x:Math.max(...bounds.map(b=>b.max.x)),y:Math.max(...bounds.map(b=>b.max.y)),z:Math.max(...bounds.map(b=>b.max.z))}
+ const target={x:sources.some(o=>isOpening(o)&&(o.wall==='east'||o.wall==='west'))?0:200,y:0,z:sources.some(o=>isOpening(o)&&(o.wall==='north'||o.wall==='south'))?0:200}
+ const offsets=[target,{x:0,y:0,z:0},{x:target.x,y:0,z:0},{x:0,y:0,z:target.z}]
+ for(const other of state.objects){const b=objectBounds(other);for(const axis of ['x','y','z'] as const)for(const value of [b.min[axis]-max[axis],b.max[axis]-min[axis]])offsets.push({x:0,y:0,z:0,[axis]:value})}
+ if(state.room){const r=state.room;for(const [axis,low,high] of [['x',-r.width/2,r.width/2],['y',0,r.height],['z',-r.depth/2,r.depth/2]] as const){offsets.push({x:0,y:0,z:0,[axis]:low-min[axis]},{x:0,y:0,z:0,[axis]:high-max[axis]})}}
+ offsets.sort((a,b)=>Math.hypot(a.x-target.x,a.y,a.z-target.z)-Math.hypot(b.x-target.x,b.y,b.z-target.z))
+ for(const delta of offsets){
+  const candidates=copies.map(object=>({...object,x:object.x+delta.x,y:object.y+delta.y,z:object.z+delta.z}))
+  let valid=true
+  for(const object of candidates){
+   if(isOpening(object)&&state.room){const horizontal=object.wall==='north'||object.wall==='south';if(Math.abs(horizontal?delta.z:delta.x)>1e-7){valid=false;break}object.offset=(object.offset??wallLength(state.room,object.wall!)/2)+(horizontal?delta.x:delta.z);const expected={width:object.width,height:object.height,y:object.y,offset:object.offset};normalizeOpening(object,state.room);if(Object.keys(expected).some(key=>Math.abs(object[key as keyof typeof expected]!-expected[key as keyof typeof expected])>1e-7)){valid=false;break}}
+   if(object.y<0||intersectsRoom(object,state.room)){valid=false;break}
+  }
+  if(!valid||hasObjectCollisions([...collisionObjects(),...collisionObjects(candidates)],state.room,true))continue
+  checkpoint();state.objects.push(...candidates);state.selection=candidates.length>1?candidates.map(object=>object.id):[];state.selected=candidates.at(-1)!.id;state.error='';state.collisionBlocked=false;return true
+ }
+ state.error='No se encontró espacio libre para pegar o duplicar la selección.';return false
 }
+export function pasteSelection(allowedTypes?:ObjectKind[]){return pasteCopies(copiedObjects,allowedTypes)}
+export function duplicate(){return pasteCopies(selection.value)}
+
 export function toggleCollisions(enabled=!(collisionSelection.value.checked||collisionSelection.value.mixed)){
  const objects=state.objects.map(object=>({...object,collisions:isStructural(object)||enabled}))
  if(hasObjectCollisions(objects,state.room,true)){state.error='Hay elementos solapados. Sepáralos antes de activar las colisiones de todos.';return}

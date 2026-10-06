@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las dieciséis suites del modelo
+npm test        # Ejecutar las diecisiete suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -61,10 +61,14 @@ Con Snap activo, los arrastres usan un paso fijo de 50 mm y los giros pasos de 1
 | --- | --- |
 | Deshacer | Ctrl/Cmd + Z |
 | Rehacer | Ctrl/Cmd + Mayús + Z |
-| Duplicar | Ctrl/Cmd + D |
-| Eliminar selección | Supr |
+| Duplicar selección | Ctrl/Cmd + D |
+| Copiar selección | Ctrl/Cmd + C |
+| Pegar selección | Ctrl/Cmd + V |
+| Eliminar selección | Supr o Backspace |
 | Deseleccionar | Escape |
 | Modo mover / rotar | W / R |
+
+La barra inferior incluye **Duplicar** junto a Agrupar/Desagrupar. Copiar y pegar utiliza un portapapeles interno del editor, conserva la disposición de una selección múltiple y respeta el modo de edición y las colisiones. Los atajos no intervienen al escribir en campos de texto o medidas.
 
 Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y la rueda para zoom. Los controles flotantes, cotas y contorno de selección se ocultan mientras se mueve la cámara, incluida la inercia, y reaparecen al detenerse. El selector de vista ofrece perspectiva, superior, frontal y lateral.
 
