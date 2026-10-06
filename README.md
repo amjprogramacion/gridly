@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las quince suites del modelo
+npm test        # Ejecutar las dieciséis suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -37,7 +37,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 
 ## Uso
 
-Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad y Altura de la habitación y mostrar en la barra lateral los botones de Puerta, Ventana, Columna, Viga y **Rodapié**. Fuera de ese modo, **Muebles** permite añadir Prisma o Cilindro; **Personalizado** está reservado para una función pendiente. La lista de piezas aparece en una tarjeta independiente y se filtra según el modo. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
+Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad y Altura de la habitación y mostrar en la barra lateral los botones de Puerta, Ventana, Columna, Viga y **Rodapié**. Fuera de ese modo, **Muebles** permite añadir Prisma o Cilindro; **Personalizado** abre una biblioteca donde puedes crear y reutilizar tus propias formas. La lista de piezas aparece en una tarjeta independiente y se filtra según el modo. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
 
 El rodapié es un acabado blanco de 80 × 12 mm que recorre todas las paredes activas, incluso las ocultas por cámara, y respeta los huecos de las puertas. Se adapta a las medidas de la estancia y se guarda con el proyecto. El mismo botón permite quitarlo. Es decorativo y no añade colisiones.
 
@@ -67,6 +67,16 @@ Con Snap activo, los arrastres usan un paso fijo de 50 mm y los giros pasos de 1
 | Modo mover / rotar | W / R |
 
 Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y la rueda para zoom. Los controles flotantes, cotas y contorno de selección se ocultan mientras se mueve la cámara, incluida la inercia, y reaparecen al detenerse. El selector de vista ofrece perspectiva, superior, frontal y lateral.
+
+## Objetos personalizados
+
+Pulsa **Personalizado** y **Crear objeto personalizado** para abrir un plano limpio con suelo y rejilla. Añade prismas y cilindros, ajusta sus tamaños, posiciones, giros y colores, y combínalos como prefieras. Las piezas pueden solaparse en este taller.
+
+Escribe un nombre en la cabecera y pulsa **Guardar objeto**. Volverás a la habitación con la biblioteca abierta y una miniatura de la forma; púlsala para insertar una copia. Si no cabe, aparece un aviso dentro del modal. Varias piezas se insertan como un grupo con escala proporcional. **Volver a la habitación** cancela el borrador actual.
+
+El lápiz de cada miniatura abre el objeto para editar sus piezas y nombre. Guardar actualiza esa plantilla; las copias que ya hayas colocado en la habitación se mantienen.
+
+La biblioteca se conserva con el proyecto y el autoguardado. El borrador del taller también se recupera al recargar, conservando la habitación original por separado. Las formas compuestas conservan sus piezas, sin unión booleana; sus colisiones usan la envolvente conservadora de los grupos.
 
 ## Agrupar elementos
 

@@ -1,5 +1,5 @@
 import { groupChildren, makeGroup, validateGroups, cloneObject, recolorStructure, validGroupScale } from './groups.ts'
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
 import { fitRotation } from './rotationFit.ts'
 import { isStructural, hasObjectCollisions, intersectsObjects, objectBounds, collisionPeers } from './objectCollisions.ts'
@@ -9,13 +9,16 @@ import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
 export interface Box { children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface CustomObject { id:string; name:string; object:Box }
+export const customEditing=ref(false)
+export const customEditingId=ref('')
 export interface Room { floorColor?:string; baseboard?:boolean; width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
 export const labels:Record<ObjectKind,string>={box:'Prisma',cylinder:'Cilindro',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga',group:'Grupo'}
 export const defaultRoom=():Room=>({width:4000,depth:3500,height:2500,thickness:120,walls:{north:true,south:true,east:true,west:true}})
 export const WALL_COLOR='#526171'
 export const FLOOR_COLOR='#34404b'
 export const DEFAULT_PROJECT_NAME='Mi espacio'
-export const state=reactive({projectName:DEFAULT_PROJECT_NAME,objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',selection:[] as string[],collisions:true,structuralColor:WALL_COLOR,snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
+export const state=reactive({projectName:DEFAULT_PROJECT_NAME,objects:[] as Box[],customObjects:[] as CustomObject[],room:defaultRoom() as Room|null,selected:'room',selection:[] as string[],collisions:true,structuralColor:WALL_COLOR,snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
 export { isStructural }
 export const collisionSelection=computed(()=>{
  const optional=state.objects.filter(object=>!isStructural(object)),active=optional.filter(object=>object.collisions??state.collisions).length
@@ -61,8 +64,8 @@ function prepareRoom(room:Room,objects:Box[]){for(const o of objects){normalizeO
 function applyMovement(o:Box,position:Pick<Box,'x'|'y'|'z'>){const result=limitMovement(collidable(o),state.room,position,collisionObjects(),true);Object.assign(o,result.position);state.collisionBlocked=result.blocked}
 const past:string[]=[],future:string[]=[]
 export const history=reactive({undo:0,redo:0})
-function snapshot(){return JSON.stringify({projectName:state.projectName,objects:state.objects,room:state.room,selected:state.selected,selection:state.selection,collisions:state.collisions,structuralColor:state.structuralColor})}
-function restore(value:string){const data=JSON.parse(value);state.projectName=data.projectName??DEFAULT_PROJECT_NAME;state.objects=data.objects;state.room=data.room;state.selection=data.selection??[];state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
+function snapshot(){return JSON.stringify({projectName:state.projectName,customObjects:state.customObjects,objects:state.objects,room:state.room,selected:state.selected,selection:state.selection,collisions:state.collisions,structuralColor:state.structuralColor})}
+function restore(value:string){const data=JSON.parse(value);state.projectName=data.projectName??DEFAULT_PROJECT_NAME;state.customObjects=data.customObjects??[];state.objects=data.objects;state.room=data.room;state.selection=data.selection??[];state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
 function counts(){history.undo=past.length;history.redo=future.length}
 export function checkpoint(){past.push(snapshot());if(past.length>100)past.shift();future.length=0;counts()}
 export function undo(){if(!past.length)return;future.push(snapshot());restore(past.pop()!);counts()}
@@ -191,9 +194,12 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);const candidate={...o,offset:(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2,y:position.y};normalizeOpening(candidate,state.room);moveOpening(o,candidate)}else applyMovement(o,position)
 }
 export function editProjectName(value:string){const name=value.trim();if(!name||name.length>120||name===state.projectName)return;checkpoint();state.projectName=name}
-export function projectJSON(){return JSON.stringify({version:6,units:'mm',projectName:state.projectName,room:state.room,objects:collisionObjects().map(object=>isStructural(object)&&object.type!=='group'?{...object,color:state.structuralColor}:object),collisions:state.collisions,structuralColor:state.structuralColor})}
+export function projectJSON(){
+ const main=customEditing.value&&customSession?JSON.parse(customSession.scene):{projectName:state.projectName,room:state.room,objects:collisionObjects().map(object=>isStructural(object)&&object.type!=='group'?{...object,color:state.structuralColor}:object),collisions:state.collisions,structuralColor:state.structuralColor}
+ return JSON.stringify({version:6,units:'mm',projectName:main.projectName,room:main.room,objects:main.objects,collisions:main.collisions,structuralColor:main.structuralColor,customObjects:state.customObjects,...(customEditing.value?{customDraft:{objects:state.objects,...(customEditingId.value?{editingId:customEditingId.value}:{})}}:{})})
+}
 export function save(){const url=URL.createObjectURL(new Blob([JSON.stringify(JSON.parse(projectJSON()),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=(state.projectName.replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/[. ]+$/,'')||'gridly')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boolean;structuralColor:string;projectName:string}{
+function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boolean;structuralColor:string;projectName:string;customObjects:CustomObject[];customDraft?:{objects:Box[];editingId?:string}}{
  const data=JSON.parse(value);if(![1,2,3,4,5,6].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
  if(data.projectName!==undefined&&(typeof data.projectName!=='string'||!data.projectName.trim()||data.projectName.length>120))throw Error()
  if(data.collisions!==undefined&&typeof data.collisions!=='boolean')throw Error()
@@ -206,12 +212,62 @@ function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boo
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.
  for(const object of all){if(isStructural(object)&&object.type!=='group')object.color=structuralColor;object.collisions=isStructural(object)|| (data.version<5?collisions&&object.collisions!==false:object.collisions??collisions)}
  if(hasObjectCollisions(data.objects,room,true))throw Error('objects')
- return {room,objects:data.objects,collisions,structuralColor,projectName:data.projectName?.trim()??DEFAULT_PROJECT_NAME}
+ const customObjects:CustomObject[]=[]
+ if(data.customObjects!==undefined){
+  if(!Array.isArray(data.customObjects)||data.customObjects.length>100)throw Error()
+  const ids=new Set<string>();let total=0
+  for(const entry of data.customObjects){
+   if(!entry||typeof entry.id!=='string'||ids.has(entry.id)||typeof entry.name!=='string'||!entry.name.trim()||entry.name.length>120)throw Error()
+   const parsed=parseProject(JSON.stringify({version:6,units:'mm',room:null,objects:[entry.object],collisions:false}))
+   const members=validateGroups(parsed.objects);total+=members.length;if(total>1000||members.some(o=>!['box','cylinder','group'].includes(o.type??'box')))throw Error()
+   ids.add(entry.id);customObjects.push({id:entry.id,name:entry.name.trim(),object:parsed.objects[0]!})
+  }
+ }
+ let customDraft:{objects:Box[];editingId?:string}|undefined
+ if(data.customDraft!==undefined){
+  if(!data.customDraft||!Array.isArray(data.customDraft.objects))throw Error()
+  const parsed=parseProject(JSON.stringify({version:6,units:'mm',room:null,objects:data.customDraft.objects,collisions:false}))
+  if(validateGroups(parsed.objects).some(o=>!['box','cylinder','group'].includes(o.type??'box')))throw Error()
+  if(data.customDraft.editingId!==undefined&&(typeof data.customDraft.editingId!=='string'||!customObjects.some(entry=>entry.id===data.customDraft.editingId)))throw Error()
+  customDraft={objects:parsed.objects,editingId:data.customDraft.editingId}
+ }
+ return {room,objects:data.objects,collisions,structuralColor,projectName:data.projectName?.trim()??DEFAULT_PROJECT_NAME,customObjects,customDraft}
 }
 export async function load(file:File){try{
- const {room,objects,collisions,structuralColor,projectName}=parseProject(await file.text());checkpoint();state.projectName=projectName;state.objects=objects;state.room=room;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':'';state.error=''
+ const {room,objects,collisions,structuralColor,projectName,customObjects,customDraft}=parseProject(await file.text());if(customEditing.value)cancelCustomObject();checkpoint();state.projectName=projectName;state.customObjects=customObjects;state.objects=objects;state.room=room;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':'';state.error='';if(customDraft){beginCustomObject(customDraft.editingId);state.objects=customDraft.objects}
  }catch(error){state.error=error instanceof Error&&error.message==='objects'?'El proyecto contiene elementos solapados con las colisiones activadas. Desactívalas o corrige sus posiciones en el JSON.':error instanceof Error&&error.message==='collision'?'El proyecto contiene objetos que atraviesan paredes o el techo. Corrige sus posiciones antes de abrirlo.':'No se pudo abrir el archivo. Usa un proyecto JSON de Gridly válido.'}}
 
+
+// The workshop has its own scene and history; autosave keeps the room alongside its draft.
+let customSession:{scene:string;past:string[];future:string[];snap:boolean;wallSnap:boolean;step:number;transformMode:'translate'|'rotate'}|null=null
+export function beginCustomObject(id?:string){
+ if(customEditing.value)return false
+ const entry=id?state.customObjects.find(item=>item.id===id):undefined;if(id&&!entry)return false
+ customSession={scene:snapshot(),past:[...past],future:[...future],snap:state.snap,wallSnap:state.wallSnap,step:state.step,transformMode:state.transformMode}
+ customEditingId.value=id??'';customEditing.value=true;state.objects=entry?(entry.object.type==='group'?groupChildren(cloneObject(entry.object,true)):[cloneObject(entry.object,true)]):[];for(const member of validateGroups(state.objects))member.collisions=false;state.room=null;state.selected='';state.selection=[];state.collisions=false;state.transformMode='translate';state.error='';past.length=0;future.length=0;counts();selectObject(state.objects[0]?.id??'');return true
+}
+export function cancelCustomObject(){
+ if(!customSession)return
+ const session=customSession;customEditing.value=false;customEditingId.value='';customSession=null;restore(session.scene);state.snap=session.snap;state.wallSnap=session.wallSnap;state.step=session.step;state.transformMode=session.transformMode;past.splice(0,past.length,...session.past);future.splice(0,future.length,...session.future);counts();state.error=''
+}
+export function saveCustomObject(name:string){
+ name=name.trim();if(!customEditing.value||!name||name.length>120||!state.objects.length)return false
+ const editingId=customEditingId.value
+ if(!editingId&&state.customObjects.length>=100){state.error='La biblioteca admite hasta 100 objetos personalizados.';return false}
+ let members:Box[];try{members=validateGroups(state.objects)}catch{state.error='El objeto supera el límite de piezas o grupos.';return false}
+ if(members.some(o=>!['box','cylinder','group'].includes(o.type??'box'))||members.length+(state.objects.length>1?1:0)+state.customObjects.filter(item=>item.id!==editingId).reduce((sum,item)=>sum+validateGroups([item.object]).length,0)>1000){state.error='El objeto supera el límite de piezas de la biblioteca.';return false}
+ const object=state.objects.length===1?cloneObject(state.objects[0]!,true):makeGroup(state.objects)
+ object.x=0;object.y=0;object.z=0;object.name=name
+ cancelCustomObject();checkpoint();const index=state.customObjects.findIndex(entry=>entry.id===editingId);if(index>=0)state.customObjects.splice(index,1,{id:editingId,name,object});else state.customObjects.push({id:crypto.randomUUID(),name,object});return true
+}
+export function insertCustomObject(id:string){
+ if(customEditing.value)return false
+ const entry=state.customObjects.find(item=>item.id===id);if(!entry)return false
+ const object=cloneObject(entry.object,true);object.name=entry.name;object.x=0;object.y=0;object.z=0
+ for(const member of validateGroups([object]))member.collisions=state.collisions
+ const placed=findPlacement(object);if(!placed){state.error='No hay espacio para este objeto personalizado. Libera espacio o reduce su tamaño en el editor.';return false}
+ checkpoint();state.objects.push(placed);selectObject(placed.id);state.error='';return true
+}
 
 export const AUTOSAVE_KEY='gridly.autosave'
 type ProjectStorage=Pick<Storage,'getItem'|'setItem'>
@@ -221,8 +277,8 @@ export function startAutosave(getStorage:()=>ProjectStorage){
  try{
   const saved=getStorage().getItem(AUTOSAVE_KEY)
   if(saved!==null){
-   const {room,objects,collisions,structuralColor,projectName}=parseProject(saved)
-   state.projectName=projectName;state.room=room;state.objects=objects;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':''
+   const {room,objects,collisions,structuralColor,projectName,customObjects,customDraft}=parseProject(saved)
+   state.projectName=projectName;state.customObjects=customObjects;state.room=room;state.objects=objects;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':'';if(customDraft){beginCustomObject(customDraft.editingId);state.objects=customDraft.objects}
   }
   state.autosaveError=''
  }catch{
