@@ -76,6 +76,8 @@ Para la cámara: arrastra desde el espacio libre para orbitar, usa el botón der
 
 Pulsa **Personalizado** y **Crear objeto personalizado** para abrir un plano limpio con suelo y rejilla. Añade prismas y cilindros, ajusta sus tamaños, posiciones, giros y colores, y combínalos como prefieras. Las piezas pueden solaparse en este taller.
 
+Junto al selector de perspectiva, el selector **Snap** permite ajustar movimientos y tamaños en pasos de **5, 10, 50 o 100 mm**, o deshabilitar el ajuste. Con Snap activo, los giros mantienen pasos de 15°. Al salir del constructor se recupera el ajuste de la habitación.
+
 Escribe un nombre en la cabecera y pulsa **Guardar objeto**. Volverás a la habitación con la biblioteca abierta y una miniatura de la forma; púlsala para insertar una copia. Si no cabe, aparece un aviso dentro del modal. Varias piezas se insertan como un grupo con escala proporcional. **Volver a la habitación** cancela el borrador actual.
 
 El lápiz de cada miniatura abre el objeto para editar sus piezas y nombre. Guardar actualiza esa plantilla; las copias que ya hayas colocado en la habitación se mantienen.
