@@ -51,7 +51,7 @@ El icono de muestras de la barra inferior abre una paleta para la pieza seleccio
 
 La paleta inferior cambia en bloque el color de paredes, vigas y columnas al seleccionar la estructura; el panel derecho no muestra ese selector. Comparten siempre ese color, independientemente del snap, desde su creación o importación. El ajuste se guarda con el proyecto y admite deshacer/rehacer. Los archivos anteriores sin este ajuste usan `#526171`.
 
-Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. El control de base mueve la pieza sobre un plano horizontal y el triángulo la eleva. Escribe en una cota flotante y confirma con Enter o al salir del campo. El panel derecho se abre únicamente con **Editar estancia** y muestra esas tres medidas de la habitación. Las piezas conservan sus cotas y controles en el visor.
+Los cuadrados cambian el tamaño manteniendo fija la cara opuesta. Arrastra desde cualquier punto de una pieza para moverla sobre un plano horizontal. La base muestra el mismo tirador cuadrado de tamaño que las demás caras. El triángulo la eleva. Un clic simple selecciona; Ctrl/Cmd o Mayús + clic conserva la selección múltiple. Escribe en una cota flotante y confirma con Enter o al salir del campo. El panel derecho se abre únicamente con **Editar estancia** y muestra esas tres medidas de la habitación. Las piezas conservan sus cotas y controles en el visor.
 
 Los controles de giro son flechas curvas de doble punta, sin recuadro, orientadas según su plano de rotación. X aparece sobre un extremo superior, Z sobre el centro del borde superior y Y junto a la esquina cercana de la base. Las flechas son grises y muestran el color del eje al pasar el cursor; sus curvas mantienen la orientación de su plano al orbitar. Arrastra siguiendo la dirección del aro para girar. Durante una misma operación, la pieza reduce su tamaño si lo necesita y lo recupera cuando vuelve a caber, hasta las medidas iniciales de esa operación.
 
@@ -70,7 +70,7 @@ Con Snap activo, los arrastres usan un paso fijo de 50 mm y los giros pasos de 1
 
 La barra inferior incluye **Duplicar** junto a Agrupar/Desagrupar. Copiar y pegar utiliza un portapapeles interno del editor, conserva la disposición de una selección múltiple y respeta el modo de edición y las colisiones. Los atajos no intervienen al escribir en campos de texto o medidas.
 
-Para la cámara: arrastra para orbitar, usa el botón derecho para desplazar y la rueda para zoom. Los controles flotantes, cotas y contorno de selección se ocultan mientras se mueve la cámara, incluida la inercia, y reaparecen al detenerse. El selector de vista ofrece perspectiva, superior, frontal y lateral.
+Para la cámara: arrastra desde el espacio libre para orbitar, usa el botón derecho para desplazar y la rueda para zoom. Los controles flotantes, cotas y contorno de selección se ocultan mientras se mueve la cámara, incluida la inercia, y reaparecen al detenerse. El selector de vista ofrece perspectiva, superior, frontal y lateral.
 
 ## Objetos personalizados
 

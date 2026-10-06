@@ -7,7 +7,7 @@ type Point={x:number;y:number}
 type Handle={key:DimensionKey;sign:number;point:Point;direction:T.Vector3;screen:Point}
 type Measure={key:DimensionKey;label:string;start:Point;end:Point;point:Point;value:number}
 type RotationControl={axis:'X'|'Y'|'Z';point:Point;path:string;iconPath:string;tangent:Point;color:string}
-interface Overlay{outline:string;handles:Handle[];measures:Measure[];base:Point;lift:Point;rotations:RotationControl[];visible:boolean;opening:boolean}
+interface Overlay{outline:string;handles:Handle[];measures:Measure[];lift:Point;rotations:RotationControl[];visible:boolean;opening:boolean}
 interface Drag{kind:'resize'|'move'|'lift'|'rotate';original:Box;start:Point;handle?:Handle;rotation?:'rotationX'|'rotationY'|'rotationZ';tangent?:Point;plane?:T.Plane;anchor?:T.Vector3;target:HTMLElement;pointer:number}
 export function useObjectControls(setInteraction:(active:boolean)=>void){
  const overlay=shallowRef<Overlay|null>(null)
@@ -32,10 +32,10 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
   const makeMeasure=(key:DimensionKey,label:string,start:T.Vector3,end:T.Vector3):Measure=>{const a=project(start),b=project(end);return {key,label,start:a,end:b,point:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},value:object[key]}}
   const offset=.18
   const measures=[makeMeasure('width','Anchura',local(-cx,bottom,cz+offset),local(cx,bottom,cz+offset)),makeMeasure('depth','Profundidad',local(cx+offset,bottom,-cz),local(cx+offset,bottom,cz)),makeMeasure('height','Altura',local(cx+offset,bottom,cz+offset),local(cx+offset,top,cz+offset))]
-  const topPoint=project(local(0,top,0)),base=project(new T.Vector3(object.x/1000,object.y/1000,object.z/1000))
+  const topPoint=project(local(0,top,0))
   if(faceObject!==object.id){faceObject=object.id;faceSigns={X:1,Y:1,Z:1}}
   const towardCamera=camera.getWorldPosition(new T.Vector3()).sub(center)
-  const rotationObstacles=handles.map(handle=>({...handle.point,w:18,h:18})).concat([{...base,w:30,h:30},{x:topPoint.x,y:topPoint.y-24,w:26,h:26}])
+  const rotationObstacles=handles.map(handle=>({...handle.point,w:18,h:18})).concat([{x:topPoint.x,y:topPoint.y-24,w:26,h:26}])
   const radius=Math.max(cx,cz,object.height/2000)+.65
   const rotations:RotationControl[]=(['X','Y','Z'] as const).map((axis,index)=>{
    // XYZ Euler axes include the preceding rotations, matching the model fields.
@@ -69,20 +69,20 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
    const points=Array.from({length:65},(_,i)=>ring(i*Math.PI/32))
    return {axis,point,iconPath,path:points.map((p,i)=>`${i?'L':'M'}${p.x},${p.y}`).join(' '),tangent:{x:(next.x-ringPoint.x)/length,y:(next.y-ringPoint.y)/length},color:['#f49b92','#9cdbab','#91bfff'][index]!}
   })
-  const occupied=rotations.map(r=>({x:r.point.x,y:r.point.y,w:40,h:40})).concat(handles.map(h=>({x:h.point.x,y:h.point.y,w:20,h:20})),[{x:base.x,y:base.y,w:30,h:30},{x:topPoint.x,y:topPoint.y-24,w:30,h:30}])
+  const occupied=rotations.map(r=>({x:r.point.x,y:r.point.y,w:40,h:40})).concat(handles.map(h=>({x:h.point.x,y:h.point.y,w:20,h:20})),[{x:topPoint.x,y:topPoint.y-24,w:30,h:30}])
   for(const measure of measures){
    measure.point.x+=measure.key==='width'?0:60;measure.point.y+=measure.key==='width'?28:measure.key==='depth'?16:0
    measure.point.x=Math.max(52,Math.min(width-52,measure.point.x));measure.point.y=Math.max(24,Math.min(height-24,measure.point.y))
    for(let i=0;i<30;i++){const overlap=occupied.find(r=>Math.abs(measure.point.x-r.x)<(96+r.w)/2+5&&Math.abs(measure.point.y-r.y)<(40+r.h)/2+5);if(!overlap)break;measure.point.y=overlap.y+(40+overlap.h)/2+6;if(measure.point.y>height-24){measure.point.y=24;measure.point.x=Math.max(52,measure.point.x-105)}}
    occupied.push({x:measure.point.x,y:measure.point.y,w:96,h:40})
   }
-  overlay.value={outline,handles,measures,base,lift:{x:topPoint.x,y:topPoint.y-24},rotations,visible:center.clone().project(camera).z<1,opening}
+  overlay.value={outline,handles,measures,lift:{x:topPoint.x,y:topPoint.y-24},rotations,visible:center.clone().project(camera).z<1,opening}
  }
  function cursor(e:PointerEvent){return {x:e.clientX-rect.left,y:e.clientY-rect.top}}
  function rayPoint(point:Point,plane:T.Plane){const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(point.x/width*2-1,1-point.y/height*2),camera);return ray.ray.intersectPlane(plane,new T.Vector3())}
- function start(e:PointerEvent,kind:Drag['kind'],handle?:Handle,rotation?:Drag['rotation'],tangent?:Point){
+ function start(e:PointerEvent,kind:Drag['kind'],handle?:Handle,rotation?:Drag['rotation'],tangent?:Point,captureTarget?:HTMLElement){
   if(e.button!==0||!selected.value)return;e.preventDefault();e.stopPropagation()
-  const original={...selected.value},point=cursor(e),target=e.currentTarget as HTMLElement
+  const original={...selected.value},point=cursor(e),target=captureTarget??e.currentTarget as HTMLElement
   if(kind==='rotate')beginRotation();else checkpoint()
   drag={kind,original,start:point,handle,rotation,tangent,target,pointer:e.pointerId}
   rotationInteraction.dragging=kind==='rotate'&&rotation?rotation.slice(-1) as 'X'|'Y'|'Z':null

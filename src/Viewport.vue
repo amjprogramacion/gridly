@@ -87,7 +87,54 @@ onMounted(()=>{try{
  const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,8,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);Object.assign(light.shadow.camera,{left:-10,right:10,top:10,bottom:-10});scene.add(light)
  const floor=workFloor=new T.Mesh(new T.PlaneGeometry(30,30),new T.MeshStandardMaterial({color:'#141a23',roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=props.workshop?-.003:-.06;floor.receiveShadow=true;scene.add(floor);const grid=workGrid=new T.GridHelper(20,40,props.workshop?'#718399':'#425064',props.workshop?'#53677d':'#263344');grid.position.y=props.workshop?-.001:-.055;scene.add(grid)
  transform=new TransformControls(camera,renderer.domElement);transform.setSize(.85);scene.add(transform.getHelper());transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});transform.addEventListener('mouseDown',()=>{if(transform.getMode()==='rotate')beginRotation();else checkpoint()});transform.addEventListener('mouseUp',()=>endRotation());transform.addEventListener('objectChange',()=>{if(syncing||!transform.object)return;const object=state.objects.find(o=>o.id===state.selected);if(!object)return;if(transform.getMode()==='rotate'){const r=transform.object.rotation;rotateSelected({rotationX:T.MathUtils.radToDeg(r.x),rotationY:T.MathUtils.radToDeg(r.y),rotationZ:T.MathUtils.radToDeg(r.z)});sync();return}const p=transform.object.position;const dimensions=worldDimensions(object);const baseY=isOpening(object)?p.y:p.y-dimensions.height/2000;const axis=transform.axis??'XYZ';const axes=(['x','y','z'] as Axis[]).filter(a=>axis.includes(a.toUpperCase()));moveSelected(p.x*1000,baseY*1000,p.z*1000,axes);sync()})
- let down={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}});renderer.domElement.addEventListener('pointerup',e=>{if(e.button!==0||Math.hypot(e.clientX-down.x,e.clientY-down.y)>4||transform.axis)return;const rect=renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);const candidates=[...meshes.values()].filter(o=>o.visible&&props.editableObjectIds.includes(o.userData.id)).concat(roomGroup.children.filter(o=>o.visible) as T.Group[]);selectObject(ray.intersectObjects(candidates,true)[0]?.object.userData.id??'',e.ctrlKey||e.metaKey||e.shiftKey)})
+ const canvas=renderer.domElement
+ let down={x:0,y:0},objectGesture:{event:PointerEvent;id:string;dragging:boolean}|null=null
+ function hit(e:PointerEvent){
+  const rect=canvas.getBoundingClientRect(),ray=new T.Raycaster()
+  ray.setFromCamera(new T.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera)
+  return ray.intersectObjects([...meshes.values()].filter(o=>o.visible).concat(roomGroup.children.filter(o=>o.visible) as T.Group[]),true)[0]?.object.userData.id as string|undefined
+ }
+ // Capture before OrbitControls: a press on an editable piece belongs to the
+ // object for the entire gesture, even when the pointer leaves its surface.
+ canvas.addEventListener('pointerdown',e=>{
+  down={x:e.clientX,y:e.clientY}
+  if(e.button!==0||objectGesture)return
+  const id=hit(e)
+  if(!id||id==='room'||!props.editableObjectIds.includes(id))return
+  const multiple=e.ctrlKey||e.metaKey||e.shiftKey
+  selectObject(id,multiple)
+  objectGesture={event:e,id,dragging:false}
+  canvas.setPointerCapture(e.pointerId);orbit.enabled=false
+  if(!multiple)controls.update(camera,meshes.get(id),host.value!.clientWidth,host.value!.clientHeight,host.value!.getBoundingClientRect())
+  e.preventDefault();e.stopImmediatePropagation()
+ },true)
+ canvas.addEventListener('pointermove',e=>{
+  const gesture=objectGesture
+  if(!gesture||e.pointerId!==gesture.event.pointerId)return
+  e.preventDefault();e.stopImmediatePropagation()
+  if(gesture.event.ctrlKey||gesture.event.metaKey||gesture.event.shiftKey)return
+  if(!gesture.dragging&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>4){
+   if(state.selected!==gesture.id||!props.editableObjectIds.includes(gesture.id))return
+   controls.start(gesture.event,'move',undefined,undefined,undefined,canvas);gesture.dragging=true
+  }
+  if(gesture.dragging)controls.move(e)
+ },true)
+ function finishObjectGesture(e:PointerEvent){
+  if(!objectGesture||e.pointerId!==objectGesture.event.pointerId)return
+  const gesture=objectGesture;objectGesture=null
+  if(gesture.dragging)controls.finish(e)
+  if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId)
+  orbit.enabled=true;e.stopImmediatePropagation()
+ }
+ canvas.addEventListener('pointerup',e=>{
+  if(objectGesture){finishObjectGesture(e);return}
+  if(e.button!==0||Math.hypot(e.clientX-down.x,e.clientY-down.y)>4||transform.axis)return
+  const id=hit(e)
+  if(!id||id==='room'||props.editableObjectIds.includes(id))selectObject(id??'',e.ctrlKey||e.metaKey||e.shiftKey)
+ },true)
+ canvas.addEventListener('pointercancel',finishObjectGesture,true)
+ canvas.addEventListener('lostpointercapture',finishObjectGesture,true)
+
  observer=new ResizeObserver(()=>{const {clientWidth:w,clientHeight:h}=host.value!;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)});observer.observe(host.value!);sync()
  renderer.setAnimationLoop(()=>{
  const now=performance.now(),frameMs=previousFrameTime?Math.max(1,Math.min(100,now-previousFrameTime)):1000/60;previousFrameTime=now
@@ -110,12 +157,11 @@ watch(()=>props.workshop,workshop=>{
  else if(roomCamera){camera.position.copy(roomCamera.position);orbit.target.copy(roomCamera.target);orbit.update();roomCamera=null}else view('Perspectiva')
 })
 
-onBeforeUnmount(()=>{observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();dispose(scene);renderer?.dispose()})
+onBeforeUnmount(()=>{controls.finish();observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();dispose(scene);renderer?.dispose()})
 </script>
 <template><div ref="host" class="viewport"><p v-if="error" class="viewport-error">{{error}}</p><div v-if="additionalOutlines.length" v-show="!cameraMoving" class="object-controls" aria-hidden="true"><svg class="object-dimensions" width="100%" height="100%"><path v-for="outline in additionalOutlines" :key="outline.id" :d="outline.path" :data-object-id="outline.id" class="selection-outline"/></svg></div><div v-if="overlay?.visible" v-show="!cameraMoving" class="object-controls" @pointermove="controls.move" @pointerup="controls.finish" @pointercancel="controls.finish" @lostpointercapture="controls.finish">
 <svg class="object-dimensions" width="100%" height="100%" aria-hidden="true"><defs><marker id="dimension-arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0 0L6 3L0 6Z" fill="#aabed0"/></marker></defs><path :d="overlay.outline" :data-object-id="state.selected" class="selection-outline"/><line v-for="measure in overlay.measures" :key="measure.key" :x1="measure.start.x" :y1="measure.start.y" :x2="measure.end.x" :y2="measure.end.y" class="dimension-line" marker-start="url(#dimension-arrow)" marker-end="url(#dimension-arrow)"/><line v-for="measure in overlay.measures" :key="measure.key+'leader'" :x1="(measure.start.x+measure.end.x)/2" :y1="(measure.start.y+measure.end.y)/2" :x2="measure.point.x" :y2="measure.point.y" class="dimension-leader"/></svg>
 <button v-for="handle in overlay.handles" :key="handle.key+handle.sign" class="face-handle" :style="{left:handle.point.x+'px',top:handle.point.y+'px'}" :aria-label="'Redimensionar '+({width:'anchura',height:'altura',depth:'profundidad'}[handle.key])+(handle.sign>0?' positiva':' negativa')" :title="'Arrastra para cambiar '+({width:'anchura',height:'altura',depth:'profundidad'}[handle.key])" @pointerdown="e=>controls.start(e,'resize',handle)"/>
-<button class="move-handle" :style="{left:overlay.base.x+'px',top:overlay.base.y+'px'}" aria-label="Mover sobre el suelo" title="Arrastra para mover sobre el suelo" @pointerdown="e=>controls.start(e,'move')">✥</button>
 <button v-if="selected?.type!=='door'" class="lift-handle" :style="{left:overlay.lift.x+'px',top:overlay.lift.y+'px'}" aria-label="Elevar objeto" title="Arrastra para elevar" @pointerdown="e=>controls.start(e,'lift')">▲</button>
 <template v-if="!overlay.opening"><svg class="rotation-rings" width="100%" height="100%" aria-hidden="true"><path v-for="control in overlay.rotations" :key="control.axis" :d="control.path" :stroke="control.color" v-show="(controls.rotationInteraction.dragging ?? controls.rotationInteraction.hovered)===control.axis"/></svg><button v-for="control in overlay.rotations" :key="control.axis" class="axis-rotation" @pointerenter="controls.rotationInteraction.hovered=control.axis" @pointerleave="controls.rotationInteraction.hovered=null" @focus="controls.rotationInteraction.hovered=control.axis" @blur="controls.rotationInteraction.hovered=null" :style="{left:control.point.x+'px',top:control.point.y+'px','--axis-color':control.color}" :aria-label="'Girar en '+control.axis" :title="'Arrastra siguiendo el aro para girar en '+control.axis" @pointerdown="e=>controls.start(e,'rotate',undefined,('rotation'+control.axis) as 'rotationX'|'rotationY'|'rotationZ',control.tangent)"><svg viewBox="0 0 40 40" aria-hidden="true"><defs><marker :id="'rotation-arrow-'+control.axis" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L6 3L0 6Z" fill="currentColor"/></marker></defs><path :d="control.iconPath" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" :marker-start="'url(#rotation-arrow-'+control.axis+')'" :marker-end="'url(#rotation-arrow-'+control.axis+')'"/></svg></button></template>
 <label v-for="measure in overlay.measures" :key="measure.key" :class="['measure-label','measure-'+measure.key]" :style="{left:measure.point.x+'px',top:measure.point.y+'px'}"><span>{{measure.label}}</span><div><input type="number" min="1" :aria-label="measure.label+' en escena'" :value="controls.drafts[measure.key] ?? Math.round(measure.value*1000)/1000" @focus="checkpoint" @input="e=>controls.drafts[measure.key]=(e.target as HTMLInputElement).value" @blur="e=>controls.changeMeasure(e,measure.key)" @keydown.enter="e=>(e.target as HTMLInputElement).blur()"><small>mm</small></div></label>
