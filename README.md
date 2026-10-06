@@ -86,6 +86,8 @@ Escribe un nombre en la cabecera y pulsa **Guardar objeto**. Volverás a la habi
 
 El lápiz de cada miniatura abre el objeto para editar sus piezas y nombre. Guardar actualiza esa plantilla; las copias que ya hayas colocado en la habitación se mantienen.
 
+Los personalizados compuestos se insertan como una sola pieza y no pueden desagruparse. Puedes agruparlos con otros elementos; al desagrupar ese grupo exterior, el personalizado conserva todos sus componentes. Este comportamiento se conserva al duplicar y guardar el proyecto.
+
 La biblioteca se conserva con el proyecto y el autoguardado. El borrador del taller también se recupera al recargar, conservando la habitación original por separado. Las formas compuestas conservan sus piezas, sin unión booleana; sus colisiones usan la envolvente conservadora de los grupos.
 
 ## Agrupar elementos

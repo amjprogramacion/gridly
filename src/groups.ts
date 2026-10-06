@@ -42,6 +42,7 @@ export function validateGroups(objects:Box[]):Box[]{
  function visit(o:Box,depth:number){
   if(!o||typeof o!=='object'||depth>20||all.length>=1000)throw Error()
   all.push(o)
+  if(o.atomic!==undefined&&(typeof o.atomic!=='boolean'||o.type!=='group'))throw Error()
   if(o.type!=='group'){if(o.children!==undefined||o.groupSize!==undefined)throw Error();return}
   if(!Array.isArray(o.children)||o.children.length<2||!o.groupSize)throw Error()
   for(const key of ['width','height','depth'] as const)if(typeof o.groupSize[key]!=='number'||!Number.isFinite(o.groupSize[key])||o.groupSize[key]<0.001||Math.abs(o[key]/o.groupSize[key]-o.width/o.groupSize.width)>1e-6)throw Error()

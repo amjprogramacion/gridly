@@ -8,7 +8,7 @@ import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
-export interface Box { children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface Box { atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface CustomObject { id:string; name:string; object:Box }
 export const customEditing=ref(false)
 export const customEditingId=ref('')
@@ -43,12 +43,13 @@ export function groupSelected(){
  checkpoint();state.objects=state.objects.filter(o=>!members.includes(o));state.objects.push(group);selectObject(group.id);state.error=''
 }
 export function ungroupSelected(){
- const group=selected.value;if(group?.type!=='group')return
+ const group=selected.value;if(group?.type!=='group'||group.atomic)return
  const children=groupChildren(group),others=state.objects.filter(o=>o.id!==group.id)
  if(children.some(o=>intersectsRoom(o,state.room))||hasObjectCollisions(collisionObjects([...others,...children]),state.room,true)){state.error='No se puede desagrupar mientras las piezas se solapen con colisiones activas.';return}
  checkpoint();state.objects=[...others,...children];selectObject(children[0]!.id);state.error=''
 }
 export const selected=computed(()=>state.objects.find(o=>o.id===state.selected))
+export const canUngroup=computed(()=>selected.value?.type==='group'&&!selected.value.atomic)
 export const wallContacts=computed(()=>selected.value?touchingWalls(selected.value,state.room,state.objects):[])
 export function snapSelected(axes:Axis[]=['x','y','z']){const o=selected.value;if(!o||isOpening(o))return;const {position}=snapPosition(o,state.room,state.objects,o,{enabled:state.snap,walls:state.wallSnap,step:state.step,axes,grid:false});applyMovement(o,position)}
 export function editStructuralColor(color:string){
@@ -293,6 +294,7 @@ export function insertCustomObject(id:string){
  if(customEditing.value)return false
  const entry=state.customObjects.find(item=>item.id===id);if(!entry)return false
  const object=cloneObject(entry.object,true);object.name=entry.name;object.x=0;object.y=0;object.z=0
+ if(object.type==='group')object.atomic=true
  for(const member of validateGroups([object]))member.collisions=state.collisions
  const placed=findPlacement(object);if(!placed){state.error='No hay espacio para este objeto personalizado. Libera espacio o reduce su tamaño en el editor.';return false}
  checkpoint();state.objects.push(placed);selectObject(placed.id);state.error='';return true
