@@ -47,7 +47,7 @@ El techo virtual está a la altura de las paredes y limita la parte superior de 
 
 Con las colisiones activas, los movimientos se detienen al contactar y permiten deslizarse por los ejes libres. Los tiradores de tamaño se limitan al contacto; las medidas y giros que provocarían un solapamiento se rechazan. Añadir y duplicar buscan una posición cercana libre. Si ya hay piezas solapadas, sepáralas o excluye una antes de activar las colisiones. Puertas y ventanas de paredes desactivadas no bloquean a otros elementos.
 
-El icono de muestras de la barra inferior abre una paleta para la pieza seleccionada; con la habitación, vigas o columnas seleccionadas cambia el color común de la estructura. La muestra tachada restaura el color original.
+El icono de muestras de la barra inferior abre una paleta para la pieza seleccionada; con la habitación, vigas o columnas seleccionadas cambia el color común de la estructura. En la paleta de la estructura puedes elegir **Paredes** o **Suelo** para cambiar sus colores por separado. El suelo se muestra continuo, sin líneas de cuadrícula. La muestra tachada restaura el color original.
 
 La paleta inferior cambia en bloque el color de paredes, vigas y columnas al seleccionar la estructura; el panel derecho no muestra ese selector. Comparten siempre ese color, independientemente del snap, desde su creación o importación. El ajuste se guarda con el proyecto y admite deshacer/rehacer. Los archivos anteriores sin este ajuste usan `#526171`.
 

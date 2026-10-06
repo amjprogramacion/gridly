@@ -49,3 +49,5 @@
 .objects-panel>.room-row:first-child,.objects-panel>.add-button:first-child{margin-top:0}
 
 .objects-panel>.construction-title:first-child{margin-top:0}
+
+.color-palette .surface-color-target{grid-column:1/-1;display:flex;gap:8px}.color-palette .surface-color-target button{flex:1;width:auto;height:auto;font-size:12px;padding:8px 12px;border-radius:20px}.color-palette .surface-color-target button[aria-pressed=true]{background:#dedede}

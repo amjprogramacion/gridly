@@ -9,10 +9,11 @@ import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
 export interface Box { children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
-export interface Room { baseboard?:boolean; width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
+export interface Room { floorColor?:string; baseboard?:boolean; width:number; depth:number; height:number; thickness:number; walls:Record<WallSide,boolean> }
 export const labels:Record<ObjectKind,string>={box:'Prisma',door:'Puerta',window:'Ventana',column:'Columna',beam:'Viga',group:'Grupo'}
 export const defaultRoom=():Room=>({width:4000,depth:3500,height:2500,thickness:120,walls:{north:true,south:true,east:true,west:true}})
 export const WALL_COLOR='#526171'
+export const FLOOR_COLOR='#34404b'
 export const DEFAULT_PROJECT_NAME='Mi espacio'
 export const state=reactive({projectName:DEFAULT_PROJECT_NAME,objects:[] as Box[],room:defaultRoom() as Room|null,selected:'room',selection:[] as string[],collisions:true,structuralColor:WALL_COLOR,snap:true,wallSnap:true,step:50,error:'',autosaveError:'',collisionBlocked:false,transformMode:'translate' as 'translate'|'rotate'})
 export { isStructural }
@@ -52,6 +53,7 @@ export function editStructuralColor(color:string){
  checkpoint();state.structuralColor=color
  recolorStructure(state.objects,color)
 }
+export function editFloorColor(color:string){if(!state.room||!/^#[0-9a-f]{6}$/i.test(color)||color===(state.room.floorColor??FLOOR_COLOR))return;checkpoint();state.room={...state.room,floorColor:color}}
 export function isOpening(o:Box){return o.type==='door'||o.type==='window'}
 export function wallLength(room:Room,side:WallSide){return side==='north'||side==='south'?room.width:room.depth}
 export function normalizeOpening(o:Box,room:Room){if(!isOpening(o))return;const side=o.wall??'north';o.wall=side;const length=wallLength(room,side);o.width=Math.min(o.width,length);o.height=Math.min(o.height,room.height);o.y=o.type==='door'?0:Math.min(Math.max(0,o.y),room.height-o.height);o.offset=Math.min(Math.max(o.width/2,o.offset??length/2),length-o.width/2);const along=o.offset-length/2;if(side==='north'||side==='south'){o.x=along;o.z=(side==='north'?-1:1)*(room.depth+room.thickness)/2}else{o.z=along;o.x=(side==='west'?-1:1)*(room.width+room.thickness)/2}}
@@ -199,7 +201,7 @@ function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boo
  const structuralColor=data.structuralColor??WALL_COLOR
  const collisions=data.collisions??false
  const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
- const room=data.version===1?null:data.room;if(room!==null){if(room?.baseboard!==undefined&&typeof room.baseboard!=='boolean')throw Error();for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
+ const room=data.version===1?null:data.room;if(room!==null){if(room?.floorColor!==undefined&&(typeof room.floorColor!=='string'||!/^#[0-9a-f]{6}$/i.test(room.floorColor)))throw Error();if(room?.baseboard!==undefined&&typeof room.baseboard!=='boolean')throw Error();for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
  if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsRoom(o,room)))throw Error('collision')}
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.
  for(const object of all){if(isStructural(object)&&object.type!=='group')object.color=structuralColor;object.collisions=isStructural(object)|| (data.version<5?collisions&&object.collisions!==false:object.collisions??collisions)}
