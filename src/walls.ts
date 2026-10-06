@@ -24,3 +24,15 @@ export function wallPanelVisible(room:Room,side:WallSide,panel:WallPanel,visible
  }
  return true
 }
+
+// Decorative skirting follows all enabled walls, with the same opening cutouts.
+export const BASEBOARD_HEIGHT=80
+export const BASEBOARD_DEPTH=12
+export function baseboardPanels(room:Room,side:WallSide,objects:Box[]):WallPanel[]{
+ if(!room.baseboard||!room.walls[side])return []
+ const length=side==='north'||side==='south'?room.width:room.depth,height=Math.min(BASEBOARD_HEIGHT,room.height)
+ return wallPanels(room,side,objects).flatMap(panel=>{
+  const start=Math.max(0,panel.start),end=Math.min(length,panel.start+panel.width),top=Math.min(height,panel.bottom+panel.height)
+  return end>start&&top>panel.bottom?[{start,bottom:panel.bottom,width:end-start,height:top-panel.bottom}]:[]
+ })
+}

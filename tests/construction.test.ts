@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { state, add, edit, editRoom, checkpoint, undo, redo, load, save, defaultRoom, normalizeOpening } from '../src/editor.ts'
+import { state, add, edit, editRoom, checkpoint, undo, redo, load, save, projectJSON, defaultRoom, normalizeOpening } from '../src/editor.ts'
 state.collisions=false
 import { wallPanels, visibleWallSides, wallPanelVisible } from '../src/walls.ts'
 state.room=defaultRoom();state.objects=[]
@@ -47,3 +47,18 @@ const opened=wallPanels(cutawayRoom,'north',[overlapA])
 const cutaway=visibleWallSides(disabled,{x:0,z:0})
 assert.equal(opened.filter(panel=>wallPanelVisible(cutawayRoom,'north',panel,cutaway)).reduce((sum,panel)=>sum+panel.width*panel.height,0),4000*2500-1000*2100)
 console.log('Wall cutaway: visible corner joins, hidden/disabled neighbours and opening preservation passed.')
+
+const {baseboardPanels}=await import('../src/walls.ts')
+const {toggleBaseboard}=await import('../src/editor.ts')
+state.room=defaultRoom();state.objects=[]
+toggleBaseboard();assert.equal(state.room.baseboard,true)
+const allSides=['north','south','east','west'] as const
+for(const side of allSides){const panels=baseboardPanels(state.room,side,[]);assert.equal(panels.reduce((sum,p)=>sum+p.width,0),side==='north'||side==='south'?4000:3500);assert.ok(panels.every(p=>p.bottom===0&&p.height===80))}
+const skirtingDoor={id:'skirting-door',name:'Puerta',type:'door' as const,wall:'north' as const,offset:2000,x:0,y:0,z:-1810,width:900,height:2100,depth:120,color:'#b78b61'}
+assert.equal(baseboardPanels(state.room,'north',[skirtingDoor]).reduce((sum,p)=>sum+p.width,0),3100)
+assert.deepEqual(baseboardPanels({...state.room,walls:{...state.room.walls,north:false}},'north',[]),[])
+assert.ok(baseboardPanels({...state.room,height:40},'north',[]).every(p=>p.height===40))
+undo();assert.equal(!!state.room!.baseboard,false);redo();assert.equal(state.room!.baseboard,true)
+const baseboardJSON=projectJSON();await load(new File([baseboardJSON],'skirting.json'));assert.equal(state.room!.baseboard,true)
+await load(new File([JSON.stringify({...JSON.parse(baseboardJSON),room:{...state.room,baseboard:'yes'}})],'invalid-skirting.json'));assert.ok(state.error);assert.equal(projectJSON(),baseboardJSON)
+console.log('Skirting: all walls, door cutouts, disabled walls, room limits, history and JSON validation passed.')

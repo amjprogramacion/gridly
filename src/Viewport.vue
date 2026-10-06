@@ -6,11 +6,12 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { state, selected, selection, selectObject, checkpoint, isOpening, moveSelected, rotateSelected, beginRotation, endRotation, type Box, type WallSide } from './editor'
 import { groupChildren } from './groups'
 import { worldDimensions } from './geometry'
-import { wallPanels, visibleWallSides, wallPanelVisible, type WallPanel } from './walls'
+import { baseboardPanels, BASEBOARD_DEPTH, wallPanels, visibleWallSides, wallPanelVisible, type WallPanel } from './walls'
 import { useObjectControls } from './useObjectControls'
 import { createCameraMotion } from './cameraMotion'
 import { projectSelectionOutline } from './selectionOutline'
 import type { Axis } from './snapping'
+const props=defineProps<{editableObjectIds:string[]}>()
 const host=ref<HTMLDivElement>();const error=ref('');const cameraMoving=ref(false)
 const additionalOutlines=shallowRef<{id:string;path:string}[]>([])
 let cameraInteracting=false,previousFrameTime=0
@@ -36,7 +37,14 @@ function syncRoom(){
  const along=(panel.start+panel.width/2-length/2)/1000,bottom=(panel.bottom+panel.height/2)/1000
  const x=horizontal?along:(side==='west'?-1:1)*(w+t)/2,z=horizontal?(side==='north'?-1:1)*(d+t)/2:along
  const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,state.structuralColor,'room');roomWalls.push({mesh,side,panel})
- }}
+ }
+ const trimDepth=Math.min(BASEBOARD_DEPTH,r.width/2,r.depth/2)/1000
+ for(const panel of baseboardPanels(r,side,state.objects)){
+  const along=(panel.start+panel.width/2-length/2)/1000,y=(panel.bottom+panel.height/2)/1000
+  const x=horizontal?along:(side==='west'?-1:1)*(w-trimDepth)/2,z=horizontal?(side==='north'?-1:1)*(d-trimDepth)/2:along
+  piece(roomGroup,horizontal?panel.width/1000:trimDepth,panel.height/1000,horizontal?trimDepth:panel.width/1000,x,y,z,'#f2f1ed','room')
+ }
+ }
 }
 function buildObject(o:Box){
  const group=new T.Group();group.userData.id=o.id
@@ -75,7 +83,7 @@ onMounted(()=>{try{
  const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,8,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);Object.assign(light.shadow.camera,{left:-10,right:10,top:10,bottom:-10});scene.add(light)
  const floor=new T.Mesh(new T.PlaneGeometry(30,30),new T.MeshStandardMaterial({color:'#141a23',roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=-.06;floor.receiveShadow=true;scene.add(floor);scene.add(new T.GridHelper(20,40,'#425064','#263344'))
  transform=new TransformControls(camera,renderer.domElement);transform.setSize(.85);scene.add(transform.getHelper());transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});transform.addEventListener('mouseDown',()=>{if(transform.getMode()==='rotate')beginRotation();else checkpoint()});transform.addEventListener('mouseUp',()=>endRotation());transform.addEventListener('objectChange',()=>{if(syncing||!transform.object)return;const object=state.objects.find(o=>o.id===state.selected);if(!object)return;if(transform.getMode()==='rotate'){const r=transform.object.rotation;rotateSelected({rotationX:T.MathUtils.radToDeg(r.x),rotationY:T.MathUtils.radToDeg(r.y),rotationZ:T.MathUtils.radToDeg(r.z)});sync();return}const p=transform.object.position;const dimensions=worldDimensions(object);const baseY=isOpening(object)?p.y:p.y-dimensions.height/2000;const axis=transform.axis??'XYZ';const axes=(['x','y','z'] as Axis[]).filter(a=>axis.includes(a.toUpperCase()));moveSelected(p.x*1000,baseY*1000,p.z*1000,axes);sync()})
- let down={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}});renderer.domElement.addEventListener('pointerup',e=>{if(e.button!==0||Math.hypot(e.clientX-down.x,e.clientY-down.y)>4||transform.axis)return;const rect=renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);const candidates=[...meshes.values()].filter(o=>o.visible).concat(roomGroup.children.filter(o=>o.visible) as T.Group[]);selectObject(ray.intersectObjects(candidates,true)[0]?.object.userData.id??'',e.ctrlKey||e.metaKey||e.shiftKey)})
+ let down={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}});renderer.domElement.addEventListener('pointerup',e=>{if(e.button!==0||Math.hypot(e.clientX-down.x,e.clientY-down.y)>4||transform.axis)return;const rect=renderer.domElement.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);const candidates=[...meshes.values()].filter(o=>o.visible&&props.editableObjectIds.includes(o.userData.id)).concat(roomGroup.children.filter(o=>o.visible) as T.Group[]);selectObject(ray.intersectObjects(candidates,true)[0]?.object.userData.id??'',e.ctrlKey||e.metaKey||e.shiftKey)})
  observer=new ResizeObserver(()=>{const {clientWidth:w,clientHeight:h}=host.value!;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)});observer.observe(host.value!);sync()
  renderer.setAnimationLoop(()=>{
  const now=performance.now(),frameMs=previousFrameTime?Math.max(1,Math.min(100,now-previousFrameTime)):1000/60;previousFrameTime=now

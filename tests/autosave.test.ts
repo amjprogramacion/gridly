@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { nextTick } from 'vue'
-import { editProjectName, DEFAULT_PROJECT_NAME, AUTOSAVE_KEY, startAutosave, state, defaultRoom, add, edit, editRoom, toggleWall, duplicate, remove, checkpoint, undo, redo, moveSelected, rotateSelected, resizeSelectedFromFace, selected, load, projectJSON } from '../src/editor.ts'
+import { toggleBaseboard, editProjectName, DEFAULT_PROJECT_NAME, AUTOSAVE_KEY, startAutosave, state, defaultRoom, add, edit, editRoom, toggleWall, duplicate, remove, checkpoint, undo, redo, moveSelected, rotateSelected, resizeSelectedFromFace, selected, load, projectJSON } from '../src/editor.ts'
 state.collisions=false
 
 const values=new Map<string,string>()
@@ -28,6 +28,7 @@ duplicate();await nextTick();assert.equal(saved().objects.length,2)
 remove();await nextTick();assert.equal(saved().objects.length,1)
 undo();await nextTick();assert.equal(saved().objects.length,2)
 redo();await nextTick();assert.equal(saved().objects.length,1)
+toggleBaseboard();await nextTick();assert.equal(saved().room.baseboard,true)
 const beforeSelection=writes
 state.selected='room';state.snap=false;state.step=10;state.error='Aviso'
 await nextTick();assert.equal(writes,beforeSelection)
@@ -38,12 +39,13 @@ const beforeInvalid=writes
 await load(new File(['{}'],'invalid.json'));await nextTick();assert.equal(writes,beforeInvalid)
 await load(new File([JSON.stringify({...project,projectName:'Piso luminoso'})],'named.json'));await nextTick();assert.equal(saved().projectName,'Piso luminoso')
 const beforeBadName=projectJSON();await load(new File([JSON.stringify({...project,projectName:42})],'bad-name.json'));assert.equal(projectJSON(),beforeBadName)
+toggleBaseboard();await nextTick();assert.equal(saved().room.baseboard,true)
 // El cierre guarda incluso si aún no se ha ejecutado el watcher.
 editRoom('depth','4200');autosave.flush();assert.equal(saved().room.depth,4200)
 autosave.stop()
 state.room=defaultRoom();state.objects=[]
 const restored=startAutosave(()=>storage)
-assert.equal(state.projectName,'Piso luminoso');assert.equal(state.room!.width,6400);assert.equal(state.room!.depth,4200)
+assert.equal(state.room!.baseboard,true);assert.equal(state.projectName,'Piso luminoso');assert.equal(state.room!.width,6400);assert.equal(state.room!.depth,4200)
 await nextTick();assert.equal(state.autosaveError,'')
 restored.stop()
 
