@@ -41,6 +41,8 @@ Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad 
 
 El rodapié es un acabado blanco de 80 × 12 mm que recorre todas las paredes activas, incluso las ocultas por cámara, y respeta los huecos de las puertas. Se adapta a las medidas de la estancia y se guarda con el proyecto. El mismo botón permite quitarlo. Es decorativo y no añade colisiones.
 
+Cuando una columna apoyada en el suelo toca una pared, el rodapié rodea sus caras expuestas en lugar de atravesarla por detrás. También contempla columnas en esquinas o conectadas entre sí y actualiza el recorrido al moverlas o cambiar sus medidas. Para columnas giradas utiliza su envolvente rectangular mundial.
+
 En construcción, arrastra una puerta o ventana hacia otra pared para cambiarla de pared y orientar su marco automáticamente. Conserva su tamaño y altura; solo se utilizan paredes activas y visibles desde la cámara donde cabe. El hueco se actualiza durante el arrastre, respetando Snap y colisiones. Un solo deshacer revierte todo el gesto.
 
 El techo virtual está a la altura de las paredes y limita la parte superior de las piezas, también si están giradas o las paredes están desactivadas. Al reducir la altura de la habitación, las piezas se bajan si caben; si son demasiado altas, se rechaza el cambio. El techo no se dibuja y no oculta la escena.

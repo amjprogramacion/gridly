@@ -6,7 +6,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js'
 import { state, selected, selection, selectObject, checkpoint, FLOOR_COLOR, isOpening, moveSelected, rotateSelected, beginRotation, endRotation, type Box, type WallSide } from './editor'
 import { groupChildren } from './groups'
 import { worldDimensions } from './geometry'
-import { baseboardPanels, BASEBOARD_DEPTH, wallPanels, visibleWallSides, wallPanelVisible, type WallPanel } from './walls'
+import { baseboardPieces, wallPanels, visibleWallSides, wallPanelVisible, type WallPanel } from './walls'
 import { useObjectControls } from './useObjectControls'
 import { createCameraMotion } from './cameraMotion'
 import { projectSelectionOutline } from './selectionOutline'
@@ -36,7 +36,7 @@ function piece(parent:T.Object3D,w:number,h:number,d:number,x:number,y:number,z:
  const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color,roughness:glass?.15:.8,transparent:glass,opacity:glass?.3:1,depthWrite:!glass}));mesh.position.set(x,y,z);mesh.castShadow=!glass;mesh.receiveShadow=true;mesh.userData.id=id;parent.add(mesh);return mesh
 }
 function syncRoom(){
- const signature=JSON.stringify([state.room,state.structuralColor,state.objects.filter(isOpening)]);if(signature===roomSignature)return;roomSignature=signature
+ const signature=JSON.stringify([state.room,state.structuralColor,state.objects.filter(o=>isOpening(o)||o.type==='column'||o.type==='group')]);if(signature===roomSignature)return;roomSignature=signature
  for(const child of [...roomGroup.children]){roomGroup.remove(child);dispose(child)}roomWalls.length=0;roomFloor=undefined
  if(!state.room)return
  const r=state.room,w=r.width/1000,d=r.depth/1000,t=r.thickness/1000
@@ -46,13 +46,8 @@ function syncRoom(){
  const x=horizontal?along:(side==='west'?-1:1)*(w+t)/2,z=horizontal?(side==='north'?-1:1)*(d+t)/2:along
  const mesh=piece(roomGroup,horizontal?panel.width/1000:t,panel.height/1000,horizontal?t:panel.width/1000,x,bottom,z,state.structuralColor,'room');roomWalls.push({mesh,side,panel})
  }
- const trimDepth=Math.min(BASEBOARD_DEPTH,r.width/2,r.depth/2)/1000
- for(const panel of baseboardPanels(r,side,state.objects)){
-  const along=(panel.start+panel.width/2-length/2)/1000,y=(panel.bottom+panel.height/2)/1000
-  const x=horizontal?along:(side==='west'?-1:1)*(w-trimDepth)/2,z=horizontal?(side==='north'?-1:1)*(d-trimDepth)/2:along
-  piece(roomGroup,horizontal?panel.width/1000:trimDepth,panel.height/1000,horizontal?trimDepth:panel.width/1000,x,y,z,'#f2f1ed','room')
  }
- }
+ for(const trim of baseboardPieces(r,state.objects))piece(roomGroup,trim.width/1000,trim.height/1000,trim.depth/1000,trim.x/1000,trim.y/1000,trim.z/1000,'#f2f1ed','room')
 }
 function buildObject(o:Box){
  const group=new T.Group();group.userData.id=o.id
