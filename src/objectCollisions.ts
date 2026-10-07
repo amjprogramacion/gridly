@@ -16,6 +16,20 @@ export function collisionPeers(object:Box,objects:Box[],room:Room|null,enabled:b
   (!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])&&
   (!(other.type==='door'||other.type==='window')||!room||!!room.walls[other.wall!]))
 }
+// Wall-mounted frames must also stop at structure touching the inner wall face.
+export function collisionShapes(a:Box,b:Box):[Box,Box]{
+ const opening=(o:Box)=>o.type==='door'||o.type==='window'
+ function frame(o:Box){
+  const shape={...o,depth:o.depth+1}
+  if(o.wall==='north')shape.z+=.5
+  else if(o.wall==='south')shape.z-=.5
+  else if(o.wall==='west')shape.x+=.5
+  else if(o.wall==='east')shape.x-=.5
+  return shape
+ }
+ return [opening(a)&&isStructural(b)?frame(a):a,opening(b)&&isStructural(a)?frame(b):b]
+}
+function collisionOverlap(a:Box,b:Box){return overlaps(...collisionShapes(a,b))}
 function orientedBox(o:Box){
   const opening=o.type==='door'||o.type==='window'
   const q=new Quaternion().setFromEuler(opening?new Euler(0,o.wall==='east'||o.wall==='west'?Math.PI/2:0,0):new Euler(MathUtils.degToRad(o.rotationX??0),MathUtils.degToRad(o.rotationY??0),MathUtils.degToRad(o.rotationZ??0),'XYZ'))
@@ -50,8 +64,8 @@ export function orientedSweep(a:Box,b:Box,delta:{x:number;y:number;z:number}):nu
  return entry>=-1e-10&&entry<1?Math.max(0,entry):null
 }
 export function intersectsObjects(object:Box,objects:Box[],room:Room|null,enabled:boolean){
- return collisionPeers(object,objects,room,enabled).some(other=>overlaps(object,other))
+ return collisionPeers(object,objects,room,enabled).some(other=>collisionOverlap(object,other))
 }
 export function hasObjectCollisions(objects:Box[],room:Room|null,enabled:boolean){
- return objects.some((object,index)=>collisionPeers(object,objects.slice(index+1),room,enabled).some(other=>overlaps(object,other)))
+ return objects.some((object,index)=>collisionPeers(object,objects.slice(index+1),room,enabled).some(other=>collisionOverlap(object,other)))
 }
