@@ -67,3 +67,28 @@
 .workspace>.workshop-properties{align-self:start;max-height:calc(100% - 120px)}.workshop-properties h2{margin-top:0;overflow-wrap:anywhere}.workshop-property-block h3{margin-top:18px}.workshop-property-block .field{margin-top:10px}
 
 .clearance-lines{stroke:#78cbb3;stroke-width:1.2}.clearance-label{pointer-events:auto;background:#dff3eb;border-color:#79b9a3;width:120px;text-align:center}.clearance-label span{overflow:hidden;text-overflow:ellipsis}.clearance-label input:disabled{opacity:.7;cursor:default}
+/* Shared SVG icon system. Compact resize targets retain their scene dimensions. */
+.app-icon{display:block;width:24px;height:24px;flex:0 0 24px;pointer-events:none}
+header button,.create-custom-button,.custom-library-heading button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.brand{display:flex;align-items:center;gap:8px}
+.construction-buttons button{display:flex;align-items:center;gap:8px}
+.construction-buttons .app-icon{color:#96c7b1}
+.construction-buttons .custom-shape-button .app-icon{width:24px;height:24px;color:inherit}
+.object-row .object-icon{width:24px;height:24px;flex:0 0 24px}
+.project-name-save{width:36px;height:36px;flex-basis:36px;padding:6px}
+.project-name-save .app-icon,.edit-custom-button .app-icon{width:24px;height:24px}
+.edit-custom-button{width:36px;height:36px;padding:6px}
+.canvas-wrap .toolbar button.group-action,.canvas-wrap .toolbar .edit-room-button{gap:6px}
+.canvas-wrap .toolbar .color-palette .reset-color .app-icon{width:24px;height:24px;color:#e4544b}
+.icon-select{position:relative;display:flex;min-width:0}
+.canvas-wrap .toolbar .icon-select select{background-image:none;padding-right:38px}
+.icon-select>.app-icon{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+.lift-handle,.axis-rotation{display:flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0}
+.axis-rotation .app-icon,.lift-handle .app-icon{width:24px;height:24px;flex:0 0 24px;filter:drop-shadow(0 1px 2px #0008)}
+.face-handle{border:0;background:transparent;box-shadow:none;color:#e4eef4}
+.face-handle .app-icon{width:11px;height:11px;flex:0 0 11px;filter:drop-shadow(0 0 1px #22303c)}
+.face-handle .app-icon path{fill:currentColor;stroke:#22303c;stroke-width:3}
+.face-handle:hover{background:transparent;color:#65e0ee}
+@media(max-width:760px){.canvas-wrap .toolbar button.group-action{padding:7px 8px}.canvas-wrap .toolbar{gap:4px}}
+
+@media(min-width:1001px){.canvas-wrap .toolbar{width:1000px}}
