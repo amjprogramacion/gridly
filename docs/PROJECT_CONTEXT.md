@@ -108,3 +108,7 @@ Se midieron las transiciones de visibilidad en el navegador al orbitar y hacer z
 
 En el equipo nuevo: leer estos archivos, ejecutar `npm ci`, `npm test`, `npm run build` y `npm run dev`. Retomar desde la siguiente petición del usuario; queda pendiente volver a mostrar las casillas generales cuando el usuario retome esa revisión; no hay una migración que ejecutar.
 
+
+En construcción, la puerta o ventana seleccionada muestra cuatro cotas de separación en milímetros, editables, sobre el plano: suelo, techo y extremos de su pared. Las columnas y vigas que alcanzan esa pared y se interponen en la dirección de medida sustituyen el límite por su cara más próxima; también se recorren los componentes de grupos. Las cotas se recalculan al mover, elevar, redimensionar o cambiar de pared el hueco. Para estructura girada se utiliza su envolvente alineada con los ejes de la estancia.
+
+Al confirmar una cota de separación con Enter o al salir del campo, se mueve el hueco sobre su pared sin cambiar su tamaño ni aplicar Snap a la cuadrícula. Los límites y el barrido de colisiones limitan el movimiento, y el campo muestra la distancia resultante. Cada cambio admite deshacer/rehacer. Las cotas verticales de puertas están deshabilitadas porque siguen apoyadas en el suelo; las ventanas permiten editar las cuatro separaciones. Valores vacíos, negativos o no finitos se descartan.

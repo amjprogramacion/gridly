@@ -1,3 +1,4 @@
+import { openingClearances, type ClearanceKey } from './openingClearances.ts'
 import { groupChildren, makeGroup, validateGroups, cloneObject, recolorStructure, validGroupScale } from './groups.ts'
 import { reactive, computed, ref, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
@@ -172,6 +173,15 @@ function moveOpening(object:Box,candidate:Box){
  const length=wallLength(state.room,object.wall!)
  object.offset=(object.wall==='north'||object.wall==='south'?position.x:position.z)+length/2
  object.y=position.y;normalizeOpening(object,state.room);state.collisionBlocked=blocked;state.error=''
+}
+export function editOpeningClearance(key:ClearanceKey,value:string){
+ const object=selected.value,room=state.room,n=Number(value)
+ if(!object||!isOpening(object)||!room||!value.trim()||!Number.isFinite(n)||n<0||n>100000)return
+ if(object.type==='door'&&(key==='bottom'||key==='top'))return
+ const clearance=openingClearances(object,room,state.objects).find(item=>item.key===key)!
+ const delta=(n-clearance.value)*(key==='right'||key==='top'?-1:1)
+ if(Math.abs(delta)<1e-7)return
+ edit(key==='left'||key==='right'?'offset':'y',String((key==='left'||key==='right'?object.offset!:object.y)+delta))
 }
 export function remove(){if(!selection.value.length)return;const ids=selection.value.map(o=>o.id);checkpoint();state.objects=state.objects.filter(o=>!ids.includes(o.id));selectObject(state.room?'room':'')}
 export function edit(key:keyof Box,value:string,record=true){

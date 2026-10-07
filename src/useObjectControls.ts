@@ -1,24 +1,27 @@
 import { shallowRef, reactive, onBeforeUnmount } from 'vue'
 import * as T from 'three'
-import { state, selected, isOpening, checkpoint, moveSelected, dragOpeningToWall, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
+import { state, selected, isOpening, checkpoint, editOpeningClearance, moveSelected, dragOpeningToWall, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
 import type { DimensionKey } from './faceResize'
 import { projectSelectionOutline } from './selectionOutline'
 import { visibleWallSides } from './walls'
+import { openingClearances, type ClearanceKey } from './openingClearances'
 type Point={x:number;y:number}
 type Handle={key:DimensionKey;sign:number;point:Point;direction:T.Vector3;screen:Point}
 type Measure={key:DimensionKey;label:string;start:Point;end:Point;point:Point;value:number}
 type RotationControl={axis:'X'|'Y'|'Z';point:Point;path:string;iconPath:string;tangent:Point;color:string}
-interface Overlay{outline:string;handles:Handle[];measures:Measure[];lift:Point;rotations:RotationControl[];visible:boolean;opening:boolean}
+type Clearance={key:ClearanceKey;label:string;start:Point;end:Point;point:Point;value:number}
+interface Overlay{clearances:Clearance[];outline:string;handles:Handle[];measures:Measure[];lift:Point;rotations:RotationControl[];visible:boolean;opening:boolean}
 interface Drag{kind:'resize'|'move'|'lift'|'rotate';original:Box;start:Point;handle?:Handle;rotation?:'rotationX'|'rotationY'|'rotationZ';tangent?:Point;plane?:T.Plane;anchor?:T.Vector3;target:HTMLElement;pointer:number}
 export function useObjectControls(setInteraction:(active:boolean)=>void){
  const overlay=shallowRef<Overlay|null>(null)
  const drafts=reactive<Partial<Record<DimensionKey,string>>>({})
+ const clearanceDrafts=reactive<Partial<Record<ClearanceKey,string>>>({})
  const rotationInteraction=reactive({hovered:null as 'X'|'Y'|'Z'|null,dragging:null as 'X'|'Y'|'Z'|null})
  let faceObject='',faceSigns={X:1,Y:1,Z:1}
  let camera:T.PerspectiveCamera,mesh:T.Group,width=1,height=1,rect:DOMRect,drag:Drag|null=null
  function project(point:T.Vector3):Point{const p=point.clone().project(camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2}}
  function local(x:number,y:number,z:number){return mesh.localToWorld(new T.Vector3(x,y,z))}
- function update(cam:T.PerspectiveCamera,active:T.Group|undefined,w:number,h:number,bounds:DOMRect){
+ function update(cam:T.PerspectiveCamera,active:T.Group|undefined,w:number,h:number,bounds:DOMRect,construction=false){
   const object=selected.value;if(!object||!active||!active.visible){overlay.value=null;return}
   camera=cam;mesh=active;width=w;height=h;rect=bounds;mesh.updateWorldMatrix(true,false)
   const opening=isOpening(object),cx=object.width/2000,cz=object.depth/2000,bottom=opening?0:-object.height/2000,top=bottom+object.height/1000,cy=(bottom+top)/2
@@ -70,14 +73,27 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
    const points=Array.from({length:65},(_,i)=>ring(i*Math.PI/32))
    return {axis,point,iconPath,path:points.map((p,i)=>`${i?'L':'M'}${p.x},${p.y}`).join(' '),tangent:{x:(next.x-ringPoint.x)/length,y:(next.y-ringPoint.y)/length},color:['#f49b92','#9cdbab','#91bfff'][index]!}
   })
-  const occupied=rotations.map(r=>({x:r.point.x,y:r.point.y,w:40,h:40})).concat(handles.map(h=>({x:h.point.x,y:h.point.y,w:20,h:20})),[{x:topPoint.x,y:topPoint.y-24,w:30,h:30}])
+  const occupied=(opening?[]:rotations).map(r=>({x:r.point.x,y:r.point.y,w:40,h:40})).concat(handles.map(h=>({x:h.point.x,y:h.point.y,w:20,h:20})),[{x:topPoint.x,y:topPoint.y-24,w:30,h:30}])
   for(const measure of measures){
    measure.point.x+=measure.key==='width'?0:60;measure.point.y+=measure.key==='width'?28:measure.key==='depth'?16:0
    measure.point.x=Math.max(52,Math.min(width-52,measure.point.x));measure.point.y=Math.max(24,Math.min(height-24,measure.point.y))
    for(let i=0;i<30;i++){const overlap=occupied.find(r=>Math.abs(measure.point.x-r.x)<(96+r.w)/2+5&&Math.abs(measure.point.y-r.y)<(40+r.h)/2+5);if(!overlap)break;measure.point.y=overlap.y+(40+overlap.h)/2+6;if(measure.point.y>height-24){measure.point.y=24;measure.point.x=Math.max(52,measure.point.x-105)}}
    occupied.push({x:measure.point.x,y:measure.point.y,w:96,h:40})
   }
-  overlay.value={outline,handles,measures,lift:{x:topPoint.x,y:topPoint.y-24},rotations,visible:center.clone().project(camera).z<1,opening}
+  const clearances:Clearance[]=opening&&construction&&state.room?openingClearances(object,state.room,state.objects).map(item=>{
+   const start=project(new T.Vector3(item.start.x,item.start.y,item.start.z).multiplyScalar(.001)),end=project(new T.Vector3(item.end.x,item.end.y,item.end.z).multiplyScalar(.001))
+   const point={x:Math.max(70,Math.min(width-70,(start.x+end.x)/2)),y:Math.max(24,Math.min(height-24,(start.y+end.y)/2-20))}
+   const anchor={...point}
+   let placed=false
+   for(let ring=0;ring<8&&!placed;ring++)for(const [dx,dy] of [[-140*ring,0],[140*ring,0],[0,-46*ring],[0,46*ring]]){
+    const candidate={x:Math.max(70,Math.min(width-70,anchor.x+dx!)),y:Math.max(24,Math.min(height-24,anchor.y+dy!))}
+    if(occupied.some(r=>Math.abs(candidate.x-r.x)<(130+r.w)/2+5&&Math.abs(candidate.y-r.y)<(38+r.h)/2+5))continue
+    Object.assign(point,candidate);placed=true;break
+   }
+   occupied.push({...point,w:130,h:38})
+   return {...item,start,end,point}
+  }):[]
+  overlay.value={clearances,outline,handles,measures,lift:{x:topPoint.x,y:topPoint.y-24},rotations,visible:center.clone().project(camera).z<1,opening}
  }
  function cursor(e:PointerEvent){return {x:e.clientX-rect.left,y:e.clientY-rect.top}}
  function rayPoint(point:Point,plane:T.Plane){const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(point.x/width*2-1,1-point.y/height*2),camera);return ray.ray.intersectPlane(plane,new T.Vector3())}
@@ -99,6 +115,12 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
  }
  function finish(e?:PointerEvent){if(!drag||e&&e.pointerId!==drag.pointer)return;const old=drag;drag=null;rotationInteraction.dragging=null;if(old.target.hasPointerCapture(old.pointer))old.target.releasePointerCapture(old.pointer);endRotation();setInteraction(false)}
  function changeMeasure(e:Event,key:DimensionKey){edit(key,(e.target as HTMLInputElement).value,false);delete drafts[key];(e.target as HTMLInputElement).value=String(selected.value?.[key]??'')}
+ function changeClearance(e:Event,key:ClearanceKey){
+  editOpeningClearance(key,(e.target as HTMLInputElement).value)
+  delete clearanceDrafts[key]
+  const object=selected.value
+  ;(e.target as HTMLInputElement).value=object&&state.room?String(Math.round(openingClearances(object,state.room,state.objects).find(item=>item.key===key)!.value*100)/100):''
+ }
  onBeforeUnmount(()=>finish())
- return {overlay,drafts,rotationInteraction,update,start,move,finish,changeMeasure}
+ return {overlay,drafts,clearanceDrafts,changeClearance,rotationInteraction,update,start,move,finish,changeMeasure}
 }
