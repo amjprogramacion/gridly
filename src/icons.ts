@@ -1,5 +1,7 @@
 // All interface glyphs share a 24 × 24 grid, 2-unit strokes and rounded ends.
 export const iconPaths={
+ account:['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z','M4 21v-2a8 8 0 0 1 16 0v2'],
+ cloud:['M6 18a4 4 0 0 1-1-8 7 7 0 0 1 13-1 4.5 4.5 0 0 1 0 9','M12 10v10m-4-4 4 4 4-4'],
  grid:['M4 4h16v16H4Z','M4 9h16M4 15h16M9 4v16M15 4v16'],
  box:['m12 3 9 5v8l-9 5-9-5V8Z','m3 8 9 5 9-5M12 13v8'],
  cylinder:['M4 6c0-4 16-4 16 0s-16 4-16 0Z','M4 6v12c0 4 16 4 16 0V6'],
@@ -22,6 +24,7 @@ export const iconPaths={
  edit:['m15 4 5 5-11 11-6 1 1-6Z','m12 7 5 5'],
  plus:['M12 4v16M4 12h16'],
  close:['m6 6 12 12M6 18 18 6'],
+ trash:['M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15','M10 10v7M14 10v7'],
  back:['M20 12H4m6-6-6 6 6 6'],
  check:['m4 12 5 5L20 6'],
  room:['M3 21V3h18v18','M7 21V7h10v14M3 21h18'],

@@ -14,7 +14,7 @@ npm run dev
 Abre la dirección que muestra Vite en la terminal. El servidor de desarrollo escucha en `127.0.0.1`.
 
 ```sh
-npm test        # Ejecutar las diecisiete suites del modelo
+npm test        # Ejecutar las suites del modelo
 npm run build   # Comprobar TypeScript y generar dist/
 npm run preview # Revisar la compilación local
 ```
@@ -108,11 +108,31 @@ Pulsa el nombre de la barra superior para editarlo y guarda con el icono de disq
 
 Usa **Descargar proyecto** para exportar la escena a JSON y **Abrir** para recuperarla en el otro dispositivo. El formato actual es versión 6 y admite archivos de versiones 1–6.
 
-La habitación y sus objetos se autoguardan con cada modificación en el almacenamiento local del navegador y se recuperan al recargar o volver a abrir Gridly en la misma dirección. Se incluyen arrastres, deshacer/rehacer y proyectos importados. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
+La habitación y sus objetos se autoguardan por proyecto en IndexedDB y se recuperan al recargar o volver a abrir Gridly en la misma dirección. **Proyectos** permite abrir, crear y duplicar proyectos guardados en este dispositivo. **Abrir** un JSON crea otro proyecto sin sustituir el anterior; cambiar de proyecto limpia el historial de deshacer. El autoguardado anterior se migra conservando su copia original.
 
-El autoguardado conserva la última escena; no conserva el historial de deshacer ni sincroniza entre dispositivos o navegadores. Subir el código a GitHub no transfiere esa escena. Usa el JSON para trasladarla y conserva una copia si borras los datos del navegador.
+Se incluyen arrastres, deshacer/rehacer y borradores del constructor. Una copia de recuperación en `localStorage` conserva lo pendiente de confirmar en IndexedDB. Si otra pestaña modifica el mismo proyecto desde una versión antigua, se conservan ambas versiones y aparece una «Copia recuperada» en Proyectos. Si el almacenamiento falla, aparece un aviso para guardar el JSON manualmente.
+
+El autoguardado no conserva el historial de deshacer. Subir el código a GitHub no transfiere las escenas; conserva un JSON como respaldo si borras los datos del navegador.
+
+Con Supabase configurado, **Iniciar sesión** envía un enlace de acceso por correo. Usa la misma cuenta en tus dispositivos. **Mi cuenta → Guardar en mi cuenta** crea una copia en tu cuenta y conserva el proyecto local original. El proyecto abierto se sincroniza automáticamente tras una pausa, al volver a la app y al recuperar conexión. **Proyectos** muestra las copias locales y los proyectos de la cuenta; crear, duplicar e importar siguen creando proyectos locales hasta que decidas subirlos.
+
+Cada guardado comprueba la revisión de origen. Si otro dispositivo ha cambiado el proyecto, se detiene la subida y aparece **Requiere revisión**. En Mi cuenta puedes **Conservar ambos** o **Usar la versión de la nube**; ambas opciones guardan primero una copia local del trabajo pendiente. Las actualizaciones recibidas se validan y esperan a que no haya edición activa. El borrador del constructor permanece local. Cerrar sesión oculta los proyectos de esa cuenta y conserva sus cambios pendientes en este dispositivo.
+
+En **Proyectos**, el icono de papelera elimina el proyecto de la lista; **Papelera** permite restaurarlo. En la cuenta se elimina también de la nube, con comprobación de revisión y sin destruir el documento. Los registros con el mismo nombre se muestran en una sola fila; las copias idénticas no se repiten y las versiones distintas se pueden abrir desde **Otras versiones**. Eliminar esa fila mueve todas sus versiones a la papelera.
 
 Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea [AGENTS.md](AGENTS.md) y [el contexto del proyecto](docs/PROJECT_CONTEXT.md). Ambos archivos están versionados y recogen las convenciones, preferencias y estado actual.
+
+La configuración y las garantías de sincronización están en [docs/SYNC_PLAN.md](docs/SYNC_PLAN.md).
+
+### Configurar Supabase
+
+1. Copia `.env.example` a `.env.local` y completa `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` desde tu proyecto Supabase. Usa solo la clave pública, nunca una clave secreta o `service_role`.
+2. Aplica la migración de `supabase/migrations/` si preparas otro proyecto Supabase. En **gridly** (`pxouqnjmjnpopmfnlbpz`) ya está aplicada.
+3. En **Authentication → URL Configuration**, configura Site URL y Redirect URLs para la dirección de la app. En desarrollo usa `http://127.0.0.1:5173/`; añade las direcciones exactas de los otros dispositivos o del alojamiento cuando existan.
+4. Mantén el enlace predeterminado (`VITE_AUTH_EMAIL_MODE=magiclink`). El correo incorporado de Supabase solo permite direcciones del equipo y tiene límites de envío. Para usuarios externos configura SMTP propio. El modo `otp` requiere una plantilla que incluya `{{ .Token }}`; los proyectos Free nuevos sin SMTP no permiten personalizarla.
+5. Reinicia Vite tras cambiar variables. Inicia sesión, guarda una escena de prueba en tu cuenta y ábrela en otro navegador/dispositivo. El servidor de desarrollo solo escucha en este equipo; para otro dispositivo necesitas una dirección accesible de Gridly.
+
+`.env.local` está excluido de Git. La configuración local de gridly ya contiene URL y clave pública. Falta verificar el retorno del correo y una sesión real; la conexión del plugin no inicia sesión dentro de Gridly.
 
 ## Estructura
 
@@ -126,6 +146,10 @@ Para retomar el desarrollo con Codex, abre el repositorio clonado y pide que lea
 | `src/collisions.ts`, `src/objectCollisions.ts`, `src/snapping.ts` | Colisiones de habitación y elementos, y snap |
 | `src/rotationFit.ts`, `src/faceResize.ts` | Giro adaptable y redimensionado |
 | `src/walls.ts` | Paredes y huecos |
+| `src/localProjects.ts`, `src/projectRepository.ts`, `src/projectPersistence.ts`, `src/useLocalProjects.ts` | Proyectos locales, IndexedDB, recuperación y metadatos de sincronización |
+| `src/LocalProjects.vue`, `src/CloudAccount.vue` | Proyectos locales/remotos y acceso a cuenta |
+| `src/cloudSync.ts`, `src/supabaseClient.ts`, `src/useCloudAccount.ts` | Revisiones, cola persistente, autenticación y sincronización |
+| `supabase/migrations/`, `supabase/tests/` | Esquema, permisos y comprobaciones SQL |
 | `tests/` | Pruebas de regresión del modelo |
 
 ## Límites actuales

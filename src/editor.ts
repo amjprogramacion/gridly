@@ -255,7 +255,7 @@ export function projectJSON(){
  return JSON.stringify({version:6,units:'mm',projectName:main.projectName,room:main.room,objects:main.objects,collisions:main.collisions,structuralColor:main.structuralColor,customObjects:state.customObjects,...(customEditing.value?{customDraft:{objects:state.objects,...(customEditingId.value?{editingId:customEditingId.value}:{})}}:{})})
 }
 export function save(){const url=URL.createObjectURL(new Blob([JSON.stringify(JSON.parse(projectJSON()),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=(state.projectName.replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/[. ]+$/,'')||'gridly')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boolean;structuralColor:string;projectName:string;customObjects:CustomObject[];customDraft?:{objects:Box[];editingId?:string}}{
+export function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boolean;structuralColor:string;projectName:string;customObjects:CustomObject[];customDraft?:{objects:Box[];editingId?:string}}{
  const data=JSON.parse(value);if(![1,2,3,4,5,6].includes(data.version)||data.units!=='mm'||!Array.isArray(data.objects)||data.objects.length>1000)throw Error()
  if(data.projectName!==undefined&&(typeof data.projectName!=='string'||!data.projectName.trim()||data.projectName.length>120))throw Error()
  if(data.collisions!==undefined&&typeof data.collisions!=='boolean')throw Error()
@@ -289,8 +289,20 @@ function parseProject(value:string):{room:Room|null;objects:Box[];collisions:boo
  }
  return {room,objects:data.objects,collisions,structuralColor,projectName:data.projectName?.trim()??DEFAULT_PROJECT_NAME,customObjects,customDraft}
 }
+let importProject:((document:string)=>Promise<unknown>)|undefined
+export function setProjectImporter(importer:typeof importProject){importProject=importer}
+export function restoreProject(document:string){
+ const data=parseProject(document)
+ if(customEditing.value)cancelCustomObject()
+ past.length=0;future.length=0;counts()
+ state.projectName=data.projectName;state.customObjects=data.customObjects;state.objects=data.objects;state.room=data.room;state.collisions=data.collisions;state.structuralColor=data.structuralColor;selectObject(data.room?'room':'');state.error=''
+ if(data.customDraft){beginCustomObject(data.customDraft.editingId);state.objects=data.customDraft.objects}
+}
 export async function load(file:File){try{
- const {room,objects,collisions,structuralColor,projectName,customObjects,customDraft}=parseProject(await file.text());if(customEditing.value)cancelCustomObject();checkpoint();state.projectName=projectName;state.customObjects=customObjects;state.objects=objects;state.room=room;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':'';state.error='';if(customDraft){beginCustomObject(customDraft.editingId);state.objects=customDraft.objects}
+ const document=await file.text()
+ const {room,objects,collisions,structuralColor,projectName,customObjects,customDraft}=parseProject(document)
+ if(importProject){await importProject(document);return}
+ if(customEditing.value)cancelCustomObject();checkpoint();state.projectName=projectName;state.customObjects=customObjects;state.objects=objects;state.room=room;state.collisions=collisions;state.structuralColor=structuralColor;state.selected=room?'room':'';state.error='';if(customDraft){beginCustomObject(customDraft.editingId);state.objects=customDraft.objects}
  }catch(error){state.error=error instanceof Error&&error.message==='objects'?'El proyecto contiene elementos solapados con las colisiones activadas. Desactívalas o corrige sus posiciones en el JSON.':error instanceof Error&&error.message==='collision'?'El proyecto contiene objetos que atraviesan paredes o el techo. Corrige sus posiciones antes de abrirlo.':'No se pudo abrir el archivo. Usa un proyecto JSON de Gridly válido.'}}
 
 
@@ -353,8 +365,4 @@ export function startAutosave(getStorage:()=>ProjectStorage){
  }
  const stop=watch(projectJSON,flush)
  return {flush,stop}
-}
-if(typeof window!=='undefined'){
- const autosave=startAutosave(()=>window.localStorage)
- window.addEventListener('pagehide',autosave.flush)
 }
