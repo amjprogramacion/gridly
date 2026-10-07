@@ -80,7 +80,7 @@ Para la cámara: arrastra desde el espacio libre para orbitar, usa el botón der
 
 ## Objetos personalizados
 
-Pulsa **Personalizado** y **Crear objeto personalizado** para abrir un plano limpio con suelo y rejilla. Añade prismas y cilindros, ajusta sus tamaños, posiciones, giros y colores, y combínalos como prefieras. Las piezas pueden solaparse en este taller.
+Pulsa **Personalizado** y **Crear objeto personalizado** para abrir un plano limpio con suelo y rejilla. Añade prismas y cilindros, ajusta sus tamaños, posiciones, giros y colores, y combínalos como prefieras. Las piezas pueden solaparse en este taller. Debajo de Cilindro, el selector **Añadir forma personalizada** inserta una copia independiente de cualquier forma guardada disponible. Modificar esa copia no cambia la plantilla ni las piezas de la habitación.
 
 El constructor muestra los ejes XYZ en el origen **(0, 0, 0)**. Al seleccionar una pieza, el panel derecho muestra dos bloques: **Tamaño** (anchura, altura y profundidad) y **Posición** (X, Y y Z), con medidas en milímetros. Enter o salir del campo confirma la edición; admite deshacer y se actualiza al arrastrar la pieza. X y Z indican el centro horizontal y Y el punto más bajo.
 

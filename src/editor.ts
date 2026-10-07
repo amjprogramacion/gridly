@@ -317,11 +317,14 @@ export function saveCustomObject(name:string){
  cancelCustomObject();checkpoint();const index=state.customObjects.findIndex(entry=>entry.id===editingId);if(index>=0)state.customObjects.splice(index,1,{id:editingId,name,object});else state.customObjects.push({id:crypto.randomUUID(),name,object});return true
 }
 export function insertCustomObject(id:string){
- if(customEditing.value)return false
- const entry=state.customObjects.find(item=>item.id===id);if(!entry)return false
+ const entry=state.customObjects.find(item=>item.id===id);if(!entry||customEditing.value&&id===customEditingId.value)return false
  const object=cloneObject(entry.object,true);object.name=entry.name;object.x=0;object.y=0;object.z=0
  if(object.type==='group')object.atomic=true
- for(const member of validateGroups([object]))member.collisions=state.collisions
+ for(const member of validateGroups([object]))member.collisions=customEditing.value?false:state.collisions
+ if(customEditing.value){
+  try{validateGroups([...state.objects,object])}catch{state.error='La forma supera el límite de piezas o grupos del constructor.';return false}
+  checkpoint();state.objects.push(object);selectObject(object.id);state.error='';state.collisionBlocked=false;return true
+ }
  const placed=findPlacement(object);if(!placed){state.error='No hay espacio para este objeto personalizado. Libera espacio o reduce su tamaño en el editor.';return false}
  checkpoint();state.objects.push(placed);selectObject(placed.id);state.error='';return true
 }

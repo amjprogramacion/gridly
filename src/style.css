@@ -92,3 +92,5 @@ header button,.create-custom-button,.custom-library-heading button{display:inlin
 @media(max-width:760px){.canvas-wrap .toolbar button.group-action{padding:7px 8px}.canvas-wrap .toolbar{gap:4px}}
 
 @media(min-width:1001px){.canvas-wrap .toolbar{width:1000px}}
+
+.workshop-template-select{width:100%;align-items:center}.workshop-template-select select{width:100%;min-width:0;height:44px;appearance:none;padding:8px 34px 8px 40px;font-size:11px;border-radius:6px;background:#302b40;border:1px dashed #9384b3;color:#d2c4ee;text-overflow:ellipsis}.workshop-template-select>.app-icon:first-child{left:8px;right:auto;color:#d2c4ee}.workshop-template-select>.app-icon:last-child{color:#d2c4ee}.workshop-template-select:has(select:disabled){opacity:.5}.workshop-template-select select:not(:disabled):hover{background:#403650}
