@@ -1,8 +1,9 @@
 import { shallowRef, reactive, onBeforeUnmount } from 'vue'
 import * as T from 'three'
-import { state, selected, isOpening, checkpoint, moveSelected, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
+import { state, selected, isOpening, checkpoint, moveSelected, dragOpeningToWall, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
 import type { DimensionKey } from './faceResize'
 import { projectSelectionOutline } from './selectionOutline'
+import { visibleWallSides } from './walls'
 type Point={x:number;y:number}
 type Handle={key:DimensionKey;sign:number;point:Point;direction:T.Vector3;screen:Point}
 type Measure={key:DimensionKey;label:string;start:Point;end:Point;point:Point;value:number}
@@ -92,7 +93,7 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
  function move(e:PointerEvent){
   if(!drag||e.pointerId!==drag.pointer)return;e.preventDefault();const point=cursor(e),dx=point.x-drag.start.x,dy=point.y-drag.start.y,o=drag.original
   if(drag.kind==='resize'&&drag.handle){const handle=drag.handle,den=handle.screen.x**2+handle.screen.y**2;if(den<1)return;const delta=(dx*handle.screen.x+dy*handle.screen.y)/den*1000*handle.sign;resizeSelectedFromFace(o,handle.key,o[handle.key]+delta,handle.sign,handle.direction)}
-  else if(drag.kind==='move'&&drag.plane&&drag.anchor){const current=rayPoint(point,drag.plane);if(current){const delta=current.sub(drag.anchor);moveSelected(o.x+delta.x*1000,o.y,o.z+delta.z*1000,['x','z'])}}
+  else if(drag.kind==='move'&&drag.plane&&drag.anchor){const current=rayPoint(point,drag.plane);if(current){const delta=current.sub(drag.anchor);if(isOpening(o)&&state.room)dragOpeningToWall(o.x+delta.x*1000,o.z+delta.z*1000,visibleWallSides(state.room,{x:camera.position.x*1000,z:camera.position.z*1000}));else moveSelected(o.x+delta.x*1000,o.y,o.z+delta.z*1000,['x','z'])}}
   else if(drag.kind==='lift'){const base=new T.Vector3(o.x/1000,o.y/1000,o.z/1000),a=project(base),b=project(base.clone().add(new T.Vector3(0,1,0))),sx=b.x-a.x,sy=b.y-a.y,den=sx*sx+sy*sy;if(den>1)moveSelected(o.x,o.y+(dx*sx+dy*sy)/den*1000,o.z,['y'])}
   else if(drag.kind==='rotate'&&drag.rotation){const distance=drag.tangent?dx*drag.tangent.x+dy*drag.tangent.y:dx;let angle=(o[drag.rotation]??0)+distance*.6;if(state.snap)angle=Math.round(angle/15)*15;rotateSelected({rotationX:o.rotationX,rotationY:o.rotationY,rotationZ:o.rotationZ,[drag.rotation]:angle})}
  }

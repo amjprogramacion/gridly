@@ -218,6 +218,22 @@ export function nudgeWorkshopSelection(direction:{x:number;z:number}){
  checkpoint()
  for(const object of selection.value)applyMovement(object,{x:object.x+dx,y:object.y,z:object.z+dz})
 }
+export function dragOpeningToWall(x:number,z:number,visible:Record<WallSide,boolean>){
+ const object=selected.value,room=state.room;if(!object||!isOpening(object)||!room)return
+ if(!visible[object.wall!])return
+ const distances:Record<WallSide,number>={north:Math.abs(z+(room.depth+room.thickness)/2),south:Math.abs(z-(room.depth+room.thickness)/2),west:Math.abs(x+(room.width+room.thickness)/2),east:Math.abs(x-(room.width+room.thickness)/2)}
+ const sides=(Object.keys(distances) as WallSide[]).filter(side=>room.walls[side]&&visible[side]&&object.width<=wallLength(room,side))
+ if(!sides.length)return
+ const nearest=sides.sort((a,b)=>distances[a]-distances[b])[0]!
+ const wall=sides.includes(object.wall!)&&distances[object.wall!]<=distances[nearest]+60?object.wall!:nearest
+ const along=wall==='north'||wall==='south'?x:z
+ const snapped=state.snap?Math.round(along/state.step)*state.step:along
+ const candidate={...object,wall,offset:snapped+wallLength(room,wall)/2}
+ normalizeOpening(candidate,room)
+ if(wall===object.wall){moveOpening(object,candidate);return}
+ if(intersectsRoom(candidate,room)||objectCollision(candidate)){state.collisionBlocked=true;return}
+ Object.assign(object,candidate);state.collisionBlocked=false;state.error=''
+}
 export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z']){
  const o=selected.value;if(!o)return
  const {position}=snapPosition(o,state.room,state.objects,{x,y,z},{enabled:state.snap,walls:state.wallSnap,step:state.step,axes})
