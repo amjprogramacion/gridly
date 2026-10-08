@@ -41,6 +41,19 @@ assert.equal(reload.current().recoveredFrom, id)
 assert.equal((await db.repository.get(reload.current().id))!.document, doc('Pestaña B'))
 assert.match(reloadPort.warning(), /Otra pestaña/)
 
+// A recovered copy retains its ancestry but subsequent solo edits are not conflicts.
+const recoveredId=reload.current().id,afterConflictCount=db.projects.size
+reloadPort.error('') // Dismissing the notice must not make it recur on each edit.
+reloadPort.edit(doc('Pestaña B siguiente')); await reload.flush()
+assert.equal(reloadPort.warning(),'')
+assert.equal(reload.current().id,recoveredId)
+assert.equal(reload.current().recoveredFrom,id)
+assert.equal(db.projects.size,afterConflictCount)
+await reload.open(id); await reload.open(recoveredId)
+reloadPort.edit(doc('Copia reabierta')); await reload.flush()
+assert.equal(reloadPort.warning(),'')
+assert.equal(reload.current().id,recoveredId)
+
 // Queued writes preserve newer edits while an earlier transaction is pending.
 let release!: () => void
 const barrier = new Promise<void>(resolve => { release = resolve })
@@ -50,6 +63,7 @@ reloadPort.edit(doc('Cambio 2')); const two = reload.flush()
 release(); await Promise.all([one, two]); db.delay()
 assert.equal(reload.current().document, doc('Cambio 2'))
 assert.equal((await db.repository.get(reload.current().id))!.document, doc('Cambio 2'))
+assert.equal(reloadPort.warning(),'')
 
 // Failed IndexedDB writes leave the latest journal, which a new session recovers.
 db.fail(true); reloadPort.edit(doc('Pendiente al cerrar'))
@@ -62,6 +76,9 @@ const recoveredPort = port(doc('Vacía'))
 const recovered = await startProjectPersistence(db.repository, store, recoveredPort)
 assert.equal(recoveredPort.document(), doc('Pendiente al cerrar'))
 assert.equal([...store.values.keys()].filter(key => key.startsWith(RECOVERY_PREFIX)).length, 0)
+assert.equal(recoveredPort.warning(),'') // Replaying a normal edit of a recovered copy is not a new fork.
+recoveredPort.edit(doc('Recuperada siguiente')); await recovered.flush()
+assert.equal(recoveredPort.warning(),'')
 
 // Replaying a committed write and a committed fork is idempotent.
 const record = recovered.current()

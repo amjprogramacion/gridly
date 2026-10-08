@@ -125,6 +125,8 @@ El constructor permite insertar formas guardadas mediante un selector debajo de 
 
 ## Sincronización y proyectos locales
 
+El aviso de conflicto entre pestañas se emite solo cuando la escritura cambia el ID del proyecto para crear una copia recuperada. El campo recoveredFrom conserva su procedencia y no vuelve a activar el aviso en ediciones normales, guardados en cola, reaperturas o recuperación de cambios pendientes. Los avisos de inicio no se reproducen en cada guardado. Se mantienen las copias existentes y la protección ante conflictos reales. La suite local verifica conflicto real, descarte y cambios posteriores sin aviso ni nuevas copias, reapertura, guardados en cola y recuperación tras fallo de almacenamiento.
+
 Primera etapa implementada: almacenamiento por proyecto en IndexedDB, UUID estable y metadatos de revisión de origen/cambios pendientes separados del JSON portátil. La recuperación termina antes de montar la app. Se migra `gridly.autosave` validando versiones 1–6 y conservando el original. La copia síncrona `gridly.recovery.<sesión>` protege cambios aún no confirmados en IndexedDB y se recupera al iniciar. Si ambos almacenamientos fallan, se debe descargar JSON; la app muestra un aviso.
 
 «Proyectos» abre una lista local para crear, abrir y duplicar; importar JSON crea otro proyecto. Cambiar de proyecto confirma primero el guardado anterior, limpia selección y reinicia deshacer/rehacer. Las escrituras se ordenan y comprueban `localVersion` dentro de la transacción nativa: una edición desde otra pestaña antigua crea una «Copia recuperada» accesible en la lista. Un cierre sin cambios no genera copias. Los reintentos de guardados confirmados y de copias recuperadas son idempotentes.

@@ -70,7 +70,7 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
       if (recovered.accountId !== null) continue // Other accounts must not load into the anonymous editor.
       editor.validate(recovered.document)
       const saved = await repository.write(recovered)
-      if (saved.recoveredFrom) warning = 'Se conservaron ambas versiones de un proyecto modificado en otra pestaña.'
+      if (saved.id !== recovered.id) warning = 'Se conservaron ambas versiones de un proyecto modificado en otra pestaña.'
       if (storage.getItem(key) === raw) storage.removeItem(key)
     } catch {
       warning = 'No se pudo recuperar una copia local. Se conserva para recuperación; descarga tu proyecto como respaldo.'
@@ -128,9 +128,10 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
         baseRevision: saved.baseRevision, syncedDocument: saved.syncedDocument,
         ...(saved.id !== desired.id ? { outbox: saved.outbox, conflict: saved.conflict } : {}),
         pending: cloudDocument(project.document) !== saved.syncedDocument } : saved
-      if (saved.recoveredFrom) warning = 'Otra pestaña modificó este proyecto. Tu trabajo se ha conservado como una copia independiente.'
+      // recoveredFrom records ancestry, not a conflict in this write.
+      const saveWarning = saved.id !== pending.id ? 'Otra pestaña modificó este proyecto. Tu trabajo se ha conservado como una copia independiente.' : ''
       if (raw && storage.getItem(journalKey) === raw) storage.removeItem(journalKey)
-      editor.error(raw ? warning : 'Proyecto guardado, pero la copia de recuperación no está disponible. Usa Descargar proyecto como respaldo.')
+      editor.error(raw ? saveWarning : 'Proyecto guardado, pero la copia de recuperación no está disponible. Usa Descargar proyecto como respaldo.')
     })
     tail = task.catch(() => {
       editor.error('No se pudo autoguardar el proyecto. La copia de recuperación se conservará si está disponible. Usa Descargar proyecto como respaldo.')
