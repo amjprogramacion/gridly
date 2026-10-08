@@ -39,7 +39,7 @@ Los comandos funcionan en Windows, macOS y Linux. `package-lock.json` debe mante
 
 Pulsa **Editar estancia** en la barra inferior para editar Anchura, Profundidad y Altura de la habitación y mostrar en la barra lateral los botones de Puerta, Ventana, Columna, Viga y **Rodapié**. Fuera de ese modo, **Muebles** permite añadir Prisma o Cilindro; **Personalizado** abre una biblioteca donde puedes crear y reutilizar tus propias formas. La lista de piezas aparece en una tarjeta independiente y se filtra según el modo. Todas las medidas están en milímetros. X y Z indican el centro horizontal; Y indica el punto más bajo del objeto, también cuando está girado.
 
-El rodapié es un acabado blanco de 80 × 12 mm que recorre todas las paredes activas, incluso las ocultas por cámara, y respeta los huecos de las puertas. Se adapta a las medidas de la estancia y se guarda con el proyecto. El mismo botón permite quitarlo. Es decorativo y no añade colisiones.
+El rodapié es un acabado blanco de 80 × 12 mm que recorre todas las paredes activas, incluso las ocultas por cámara, y respeta los huecos de las puertas. Se adapta a las medidas de la estancia y se guarda con el proyecto. El mismo botón permite quitarlo. Impide que los muebles lo atraviesen, incluso con sus colisiones opcionales desactivadas; permite apoyarlos en contacto o colocarlos por encima. Si un mueble ocupa su espacio, hay que separarlo o elevarlo antes de añadir el rodapié.
 
 Cuando una columna apoyada en el suelo toca una pared, el rodapié rodea sus caras expuestas en lugar de atravesarla por detrás. También contempla columnas en esquinas o conectadas entre sí y actualiza el recorrido al moverlas o cambiar sus medidas. Para columnas giradas utiliza su envolvente rectangular mundial.
 

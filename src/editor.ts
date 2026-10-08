@@ -79,7 +79,12 @@ export function editRoom(key:'width'|'depth'|'height'|'thickness',value:string){
  if(!prepareRoom(room,objects)){state.error='La habitación no puede tener esas medidas: hay un objeto que no cabe entre las paredes, bajo el techo o sin solaparse con otro elemento.';return}
  state.room=room;state.objects=objects;state.error='';state.collisionBlocked=false
 }
-export function toggleBaseboard(){if(!state.room)return;checkpoint();state.room={...state.room,baseboard:!state.room.baseboard};state.error=''}
+export function toggleBaseboard(){
+ if(!state.room)return
+ const room={...state.room,baseboard:!state.room.baseboard}
+ if(room.baseboard&&hasObjectCollisions(collisionObjects(),room,true)){state.error='No se puede añadir el rodapié: se solapa con un mueble. Sepáralo de la pared o elévalo.';return}
+ checkpoint();state.room=room;state.error=''
+}
 export function toggleWall(key:WallSide){if(!state.room)return;const room={...state.room,walls:{...state.room.walls,[key]:!state.room.walls[key]}},objects=state.objects.map(o=>({...o}));if(!prepareRoom(room,objects)){state.error='No se puede activar la pared: hay un objeto demasiado grande o solapado. Reduce sus medidas o cambia su posición.';return}checkpoint();state.room=room;state.objects=objects;state.error=''}
 export function add(type:ObjectKind='box'){
  if(type==='group')return
@@ -165,7 +170,7 @@ export function toggleSelectedCollisions(){
 function objectCollision(candidate:Box){
  if(candidate.type==='group'&&!validGroupScale(candidate)){state.error='El tamaño deja un componente por debajo de 0,001 mm.';return true}
  if(!intersectsObjects(collidable(candidate),collisionObjects(),state.room,true))return false
- state.error='El elemento se solaparía con otro. Muévelo o desactiva sus colisiones.';state.collisionBlocked=true;return true
+ state.error='El elemento se solaparía con otro elemento o con el rodapié. Cambia su posición o sus medidas.';state.collisionBlocked=true;return true
 }
 function moveOpening(object:Box,candidate:Box){
  if(!state.room)return

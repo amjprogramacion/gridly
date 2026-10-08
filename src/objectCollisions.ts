@@ -1,6 +1,7 @@
 import type { Box, Room } from './editor'
 import { Euler, Quaternion, Vector3, MathUtils } from 'three'
 import { worldDimensions } from './geometry.ts'
+import { baseboardPieces } from './walls.ts'
 export const COLLISION_EPS=1e-7
 export function isStructural(object:Box){return object.type==='beam'||object.type==='column'||!!object.children?.some(isStructural)}
 export function objectBounds(object:Box){
@@ -11,10 +12,16 @@ export function participates(object:Box,room:Room|null){
  return (isStructural(object)||object.collisions!==false)&&(!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])
 }
 export function collisionPeers(object:Box,objects:Box[],room:Room|null,enabled:boolean){
- return objects.filter(other=>other.id!==object.id&&
+ const peers=objects.filter(other=>other.id!==object.id&&
   ((isStructural(object)||isStructural(other))&&!((object.type==='beam'||object.type==='column')&&(other.type==='beam'||other.type==='column'))||!isStructural(object)&&!isStructural(other)&&enabled&&object.collisions!==false&&other.collisions!==false)&&
   (!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])&&
   (!(other.type==='door'||other.type==='window')||!room||!!room.walls[other.wall!]))
+ // Room finishes always block furniture, independently of optional collisions.
+ if(room?.baseboard&&!isStructural(object)&&object.type!=='door'&&object.type!=='window'){
+  const scene=[...objects.filter(other=>other.id!==object.id),object]
+  peers.push(...baseboardPieces(room,scene).map((piece,index):Box=>({...piece,y:piece.y-piece.height/2,id:`baseboard:${index}`,name:'Rodapié',color:'#f2f1ed'})))
+ }
+ return peers
 }
 // Wall-mounted frames must also stop at structure touching the inner wall face.
 export function collisionShapes(a:Box,b:Box):[Box,Box]{
@@ -67,5 +74,5 @@ export function intersectsObjects(object:Box,objects:Box[],room:Room|null,enable
  return collisionPeers(object,objects,room,enabled).some(other=>collisionOverlap(object,other))
 }
 export function hasObjectCollisions(objects:Box[],room:Room|null,enabled:boolean){
- return objects.some((object,index)=>collisionPeers(object,objects.slice(index+1),room,enabled).some(other=>collisionOverlap(object,other)))
+ return objects.some(object=>intersectsObjects(object,objects,room,enabled))
 }
