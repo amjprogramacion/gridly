@@ -1,5 +1,5 @@
 import type { Box, Room, WallSide } from './editor'
-import { collisionPeers, collisionShapes, objectBounds, intersectsObjects, boundsOverlap, overlaps, orientedSweep } from './objectCollisions.ts'
+import { collisionPeers, collisionPairs, objectBounds, intersectsObjects, boundsOverlap, overlaps, orientedSweep } from './objectCollisions.ts'
 import { worldDimensions } from './geometry.ts'
 import type { Axis, Position } from './snapping'
 const axes:Axis[]=['x','y','z']
@@ -43,14 +43,14 @@ export function limitMovement(object:Box,room:Room|null,target:Position,objects:
  const obstacles=room?walls(room).filter(w=>!opening||w.side!==object.wall).map(w=>expanded(w,object)):[]
  if(room)obstacles.push({min:{x:-Infinity,y:room.height-worldDimensions(object).height,z:-Infinity},max:{x:Infinity,y:Infinity,z:Infinity}})
  const peers=collisionPeers(object,objects,room,collisions)
- obstacles.push(...peers.map(other=>{
-  const [shape,peer]=collisionShapes(object,other),bounds=expanded(objectBounds(peer),shape)
+ obstacles.push(...peers.flatMap(other=>collisionPairs(object,other)).map(([shape,peer])=>{
+  const bounds=expanded(objectBounds(peer),shape)
   for(const axis of axes){bounds.min[axis]-=shape[axis]-object[axis];bounds.max[axis]-=shape[axis]-object[axis]}
   return bounds
  }))
  for(let iteration=0;iteration<4;iteration++){
   const current={...object,...position}
-  const narrowTime=peers.map(other=>collisionShapes(current,other)).filter(([a,b])=>boundsOverlap(a,b)&&!overlaps(a,b)).reduce((time,[a,b])=>Math.min(time,orientedSweep(a,b,delta)??Infinity),Infinity)
+  const narrowTime=peers.flatMap(other=>collisionPairs(current,other)).filter(([a,b])=>boundsOverlap(a,b)&&!overlaps(a,b)).reduce((time,[a,b])=>Math.min(time,orientedSweep(a,b,delta)??Infinity),Infinity)
   const hits=obstacles.map(w=>sweep(position,delta,w)).filter(h=>h!==null)
   const time=hits.reduce((t,h)=>Math.min(t,h.time),Infinity)
   if(narrowTime<time){for(const axis of axes)position[axis]+=delta[axis]*narrowTime;blocked=true;break}

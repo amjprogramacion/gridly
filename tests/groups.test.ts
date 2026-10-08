@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { state, selected, selectObject, selection, groupSelected, ungroupSelected, moveSelected, edit, duplicate, remove, undo, redo, projectJSON, load, defaultRoom, resizeSelectedFromFace, editStructuralColor, startAutosave, AUTOSAVE_KEY } from '../src/editor.ts'
-import { groupChildren, validateGroups } from '../src/groups.ts'
-import { objectBounds } from '../src/objectCollisions.ts'
+import { groupChildren, validateGroups, makeGroup } from '../src/groups.ts'
+import { objectBounds, intersectsObjects } from '../src/objectCollisions.ts'
 import { limitMovement } from '../src/collisions.ts'
 import type { Box } from '../src/editor.ts'
 const piece=(id:string,x:number):Box=>({id,name:id,type:'box',x,y:0,z:0,width:400,height:400,depth:400,color:'#779b8e',collisions:true})
@@ -42,3 +42,23 @@ const crossing=limitMovement(a,null,{x:a.x+10*(b.x-a.x),y:a.y+10*(b.y-a.y),z:a.z
 assert.equal(crossing.blocked,true);assert.ok(Math.abs(crossing.position.x-a.x)<1e-5)
 console.log('Groups: selection, rigid transforms, proportional face resize, collisions, nested groups, unique duplication, history, JSON validation, autosave and structural color passed.')
 
+
+// An external piece may occupy empty space between grouped components.
+setup();state.error='';state.objects.push({...piece('middle',0),width:100,height:100,depth:100});
+groupSelected();assert.equal(state.error,'');assert.equal(state.objects.length,2);
+const hollow=selected.value!;assert.equal(hollow.type,'group');
+const saved=projectJSON();await load({text:async()=>saved} as File);assert.equal(state.error,'');selectObject(hollow.id);
+moveSelected(0,0,1000);assert.equal(selected.value!.z,1000);undo();assert.equal(selected.value!.z,0);
+moveSelected(1000,0,0);assert.equal(state.collisionBlocked,true);assert.ok(selected.value!.x<1000);
+undo();ungroupSelected();assert.equal(state.objects.length,3);assert.equal(state.error,'');
+// Real intersections remain blocked when grouping.
+setup();state.error='';state.objects.push({...piece('crossing',-300),width:100});groupSelected();assert.equal(state.objects.length,3);assert.ok(state.error);
+
+// A tabletop near the wall and its inset leg do not fill the space above skirting.
+state.room={...defaultRoom(),baseboard:true};state.error='';state.objects=[{...piece('top',0),y:700,z:-1600,width:1000,height:30,depth:300},{...piece('leg',0),z:-1450,width:50,height:700,depth:50}];selectObject('top');selectObject('leg',true);
+groupSelected();assert.equal(state.error,'');assert.equal(state.objects.length,1);
+const table=selected.value!;assert.equal(intersectsObjects(table,state.objects,state.room,true),false);
+const nestedTable=makeGroup([table,{...piece('extra',1000),z:500}]);
+assert.equal(intersectsObjects(nestedTable,[nestedTable],state.room,true),false);
+const obstacle=makeGroup([{...piece('obstacle',0),z:-1450,y:200,width:20,height:20,depth:20}]);
+assert.equal(intersectsObjects(nestedTable,[obstacle],state.room,true),true);

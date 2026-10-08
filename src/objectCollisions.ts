@@ -1,5 +1,6 @@
 import type { Box, Room } from './editor'
 import { Euler, Quaternion, Vector3, MathUtils } from 'three'
+import { groupChildren } from './groups.ts'
 import { worldDimensions } from './geometry.ts'
 import { baseboardPieces } from './walls.ts'
 export const COLLISION_EPS=1e-7
@@ -36,7 +37,9 @@ export function collisionShapes(a:Box,b:Box):[Box,Box]{
  }
  return [opening(a)&&isStructural(b)?frame(a):a,opening(b)&&isStructural(a)?frame(b):b]
 }
-function collisionOverlap(a:Box,b:Box){return overlaps(...collisionShapes(a,b))}
+export function collisionParts(object:Box):Box[]{return object.type==='group'?groupChildren(object).flatMap(collisionParts):[object]}
+export function collisionPairs(a:Box,b:Box):[Box,Box][]{return collisionParts(a).flatMap(first=>collisionParts(b).map(second=>collisionShapes(first,second)))}
+function collisionOverlap(a:Box,b:Box){return collisionPairs(a,b).some(([first,second])=>overlaps(first,second))}
 function orientedBox(o:Box){
   const opening=o.type==='door'||o.type==='window'
   const q=new Quaternion().setFromEuler(opening?new Euler(0,o.wall==='east'||o.wall==='west'?Math.PI/2:0,0):new Euler(MathUtils.degToRad(o.rotationX??0),MathUtils.degToRad(o.rotationY??0),MathUtils.degToRad(o.rotationZ??0),'XYZ'))

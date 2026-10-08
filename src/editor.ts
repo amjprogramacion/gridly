@@ -41,7 +41,7 @@ export function groupSelected(){
  if(!canGroup.value)return
  const members=selection.value,group=makeGroup(members)
  try{validateGroups([...state.objects.filter(o=>!members.includes(o)),group])}catch{state.error='El grupo supera el límite de componentes o de grupos anidados.';return}
- if(intersectsObjects(collidable(group),collisionObjects(state.objects.filter(o=>!members.includes(o))),state.room,true)){state.error='La envolvente del grupo se solapa con otro elemento. Inclúyelo en el grupo o sepáralo.';return}
+ if(intersectsObjects(collidable(group),collisionObjects(state.objects.filter(o=>!members.includes(o))),state.room,true)){state.error='Una pieza del grupo se solapa con otro elemento. Inclúyelo en el grupo o sepáralo.';return}
  checkpoint();state.objects=state.objects.filter(o=>!members.includes(o));state.objects.push(group);selectObject(group.id);state.error=''
 }
 export function ungroupSelected(){
