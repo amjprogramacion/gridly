@@ -27,6 +27,12 @@ export function canonicalDocument(document: string, includeDraft = true): string
 }
 export const cloudDocument = (document: string) => canonicalDocument(document, false)
 
+// A visible version can represent several identical local/account copies.
+export function projectVersionCopies(copies:LocalProject[],version:LocalProject){
+  const document=canonicalDocument(version.document)
+  return copies.filter(copy=>canonicalDocument(copy.document)===document)
+}
+
 // One row per name, retaining distinct documents as selectable versions.
 export function projectRows(projects: LocalProject[], activeId: string) {
   const groups = new Map<string, LocalProject[]>()

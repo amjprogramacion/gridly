@@ -5,7 +5,7 @@ import { localProjects, projectTransition } from './useLocalProjects.ts'
 import { cloudAccount, cancelCurrentSync, waitForCurrentSync, projectChanged } from './useCloudAccount.ts'
 import { listCloudProjects, cloudTransport, cloudProjectState, setCloudProjectDeleted, type CloudProjectSummary } from './supabaseClient.ts'
 import { defaultRoom, DEFAULT_PROJECT_NAME, WALL_COLOR, projectJSON, state } from './editor.ts'
-import { projectRows, type LocalProject } from './localProjects.ts'
+import { projectRows, projectVersionCopies, type LocalProject } from './localProjects.ts'
 
 const dialog = ref<HTMLDialogElement>()
 const projects = ref<LocalProject[]>([])
@@ -108,6 +108,9 @@ async function removeOrRestore(copies: LocalProject[], remotes: CloudProjectSumm
   if (message) error.value = message
 }
 async function toggleTrash() { trash.value = !trash.value; await show(false) }
+function versionLabel(projectName:string,version:{updatedAt:string}){
+  return `${trash.value?'Restaurar':'Eliminar'} versión de ${projectName} del ${new Date(version.updatedAt).toLocaleString('es-ES')}`
+}
 </script>
 
 <template>
@@ -124,12 +127,26 @@ async function toggleTrash() { trash.value = !trash.value; await show(false) }
           <span class="muted">{{new Date(row.project.updatedAt).toLocaleString('es-ES')}}<small v-if="row.project.id===localProjects?.current().id">Actual</small></span>
         </button>
         <button class="project-delete" :disabled="busy" :aria-label="(trash?'Restaurar ':'Eliminar ')+name(row.project)" :title="trash?'Restaurar proyecto':'Eliminar proyecto'" @click="removeOrRestore(row.copies,remoteVersions(name(row.project)))"><AppIcon :name="trash?'back':'trash'"/></button>
-      </div><details v-if="row.versions.length>1 || remoteVersions(name(row.project)).length" class="project-versions"><summary>Otras versiones ({{row.versions.length-1+remoteVersions(name(row.project)).length}})</summary><p class="muted">Estas versiones tienen cambios distintos o proceden de otra copia. Puedes abrirlas para revisarlas.</p><button v-for="version in row.versions.slice(1)" :key="version.id" :disabled="busy || trash" @click="open(version.id)">{{version.accountId?'En mi cuenta':'En este dispositivo'}}{{version.recoveredFrom?' · Copia recuperada':''}} · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button><button v-for="version in remoteVersions(name(row.project))" :key="version.id" :disabled="busy || trash" @click="openCloud(version.id)">En mi cuenta · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button></details></div>
+      </div><details v-if="row.versions.length>1 || remoteVersions(name(row.project)).length" class="project-versions"><summary>Otras versiones ({{row.versions.length-1+remoteVersions(name(row.project)).length}})</summary><p class="muted">Estas versiones tienen cambios distintos o proceden de otra copia. Puedes abrirlas para revisarlas.</p>
+        <div v-for="version in row.versions.slice(1)" :key="version.id" class="project-version-row">
+          <button class="version-open" :disabled="busy || trash" @click="open(version.id)">{{version.accountId?'En mi cuenta':'En este dispositivo'}}{{version.recoveredFrom?' · Copia recuperada':''}} · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button>
+          <button class="project-delete" :disabled="busy" :aria-label="versionLabel(name(row.project),version)" :title="trash?'Restaurar versión':'Eliminar versión'" @click="removeOrRestore(projectVersionCopies(row.copies,version))"><AppIcon :name="trash?'back':'trash'"/></button>
+        </div>
+        <div v-for="version in remoteVersions(name(row.project))" :key="version.id" class="project-version-row">
+          <button class="version-open" :disabled="busy || trash" @click="openCloud(version.id)">En mi cuenta · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button>
+          <button class="project-delete" :disabled="busy" :aria-label="versionLabel(name(row.project),version)" :title="trash?'Restaurar versión':'Eliminar versión'" @click="removeOrRestore([],[version])"><AppIcon :name="trash?'back':'trash'"/></button>
+        </div>
+      </details></div>
       <div v-for="group in remoteRows" :key="group[0]!.id" class="project-entry"><div class="project-row">
         <template v-for="project in group.slice(0,1)" :key="project.id">
         <button class="project-open" :disabled="busy || trash" @click="openCloud(project.id)"><span>{{project.name}}<small>En mi cuenta</small></span><span class="muted">{{new Date(project.updatedAt).toLocaleString('es-ES')}}</span></button>
         <button class="project-delete" :disabled="busy" :aria-label="(trash?'Restaurar ':'Eliminar ')+project.name" @click="removeOrRestore([],group)"><AppIcon :name="trash?'back':'trash'"/></button>
-        </template></div><details v-if="group.length>1" class="project-versions"><summary>Otras versiones ({{group.length-1}})</summary><button v-for="version in group.slice(1)" :key="version.id" :disabled="busy || trash" @click="openCloud(version.id)">En mi cuenta · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button></details></div>
+        </template></div><details v-if="group.length>1" class="project-versions"><summary>Otras versiones ({{group.length-1}})</summary>
+          <div v-for="version in group.slice(1)" :key="version.id" class="project-version-row">
+            <button class="version-open" :disabled="busy || trash" @click="openCloud(version.id)">En mi cuenta · {{new Date(version.updatedAt).toLocaleString('es-ES')}}</button>
+            <button class="project-delete" :disabled="busy" :aria-label="versionLabel(version.name,version)" :title="trash?'Restaurar versión':'Eliminar versión'" @click="removeOrRestore([],[version])"><AppIcon :name="trash?'back':'trash'"/></button>
+          </div>
+        </details></div>
       <p v-if="!rows.length && !remoteProjects.length" class="muted">{{trash?'La papelera está vacía.':'No hay proyectos guardados.'}}</p>
     </div>
   </dialog>
@@ -145,7 +162,9 @@ async function toggleTrash() { trash.value = !trash.value; await show(false) }
 .project-delete { flex: 0 0 44px; padding: 10px; }
 .project-versions { padding: 8px 14px; font-size: 12px; }
 .project-versions summary { cursor: pointer; color: #b8c3ce; }
-.project-versions button { display: block; margin-top: 8px; width: 100%; text-align: left; }
+.project-version-row { display: flex; align-items: stretch; gap: 8px; margin-top: 8px; }
+.version-open { flex: 1; min-width: 0; justify-content: flex-start; text-align: left; overflow-wrap: anywhere; }
+.project-version-row .project-delete { display: flex; align-items: center; justify-content: center; }
 .project-open:disabled { opacity: 1; }
 .local-project-list button[aria-current="true"] { border-color: #70d0dc; }
 .local-project-list small { display: block; margin-top: 4px; }

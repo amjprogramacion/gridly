@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { canonicalDocument, newLocalProject, projectRows, resolveLocalWrite } from '../src/localProjects.ts'
+import { canonicalDocument, newLocalProject, projectRows, projectVersionCopies, resolveLocalWrite } from '../src/localProjects.ts'
 import { startProjectPersistence } from '../src/projectPersistence.ts'
 import { doc, memoryRepository, memoryStorage, port } from './helpers/projectFixtures.ts'
 
@@ -15,6 +15,9 @@ assert.equal(rows[0]!.project.id, account.id)
 const draft = { ...base, id: crypto.randomUUID(), document: JSON.stringify({ ...JSON.parse(base.document), customDraft: { name: 'Pendiente' } }) }
 assert.equal(projectRows([base,draft], base.id)[0]!.versions.length, 2)
 assert.notEqual(canonicalDocument(base.document), canonicalDocument(draft.document))
+assert.deepEqual(projectVersionCopies(rows[0]!.copies,different).map(p=>p.id),[different.id])
+assert.equal(projectVersionCopies(rows[0]!.copies,account).length,3)
+assert.deepEqual(projectVersionCopies([base,draft],draft).map(p=>p.id),[draft.id])
 // A metadata update from another tab does not manufacture another scene.
 assert.equal(resolveLocalWrite(account, { ...account, localVersion: 1, writeId: crypto.randomUUID() }).id, account.id)
 assert.notEqual(resolveLocalWrite(account, { ...different, id: account.id, localVersion: 1, writeId: crypto.randomUUID() }).id, account.id)
@@ -23,6 +26,15 @@ const db = memoryRepository(), storage = memoryStorage(), editor = port(doc('Eli
 const local = await startProjectPersistence(db.repository, storage, editor)
 const stale = await startProjectPersistence(db.repository, storage, port(doc('Vacía')))
 const id = local.current().id
+await local.create(doc('Eliminar'))
+const secondaryId=local.current().id
+await local.open(id)
+await local.setDeleted([secondaryId],true,doc('Nueva'))
+assert.equal(local.current().id,id)
+assert.equal((await local.list()).some(p=>p.id===id),true)
+assert.equal((await local.list()).some(p=>p.id===secondaryId),false)
+await local.setDeleted([secondaryId],false,doc('Nueva'))
+assert.equal((await local.list()).some(p=>p.id===secondaryId),true)
 await local.setDeleted([id], true, doc('Nueva'))
 assert.equal((await local.list()).some(p => p.id === id), false)
 assert.equal((await local.list(true))[0]!.id, id)
