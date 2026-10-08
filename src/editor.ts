@@ -1,4 +1,5 @@
 import { openingClearances, type ClearanceKey } from './openingClearances.ts'
+import { validTexture } from './textures.ts'
 import { groupChildren, makeGroup, validateGroups, cloneObject, recolorStructure, validGroupScale } from './groups.ts'
 import { reactive, computed, ref, watch } from 'vue'
 import { resizedFromFace, type DimensionKey } from './faceResize.ts'
@@ -9,7 +10,7 @@ import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
-export interface Box { atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface Box { texture?:string; atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface CustomObject { id:string; name:string; object:Box }
 export const customEditing=ref(false)
 export const customEditingId=ref('')
@@ -59,6 +60,17 @@ export function editStructuralColor(color:string){
  recolorStructure(state.objects,color)
 }
 export function editFloorColor(color:string){if(!state.room||!/^#[0-9a-f]{6}$/i.test(color)||color===(state.room.floorColor??FLOOR_COLOR))return;checkpoint();state.room={...state.room,floorColor:color}}
+export function canEditAppearance(object:Box):boolean{return object.type==='group'?!!object.children?.length&&object.children.every(canEditAppearance):['box','cylinder'].includes(object.type??'box')}
+export function hasTexture(object:Box):boolean{return !!object.texture||!!object.children?.some(hasTexture)}
+function appearancePieces(object:Box):Box[]{return [object,...(object.children??[]).flatMap(appearancePieces)]}
+export function setObjectTexture(id:string,texture?:string){
+ const object=state.objects.find(o=>o.id===id)
+ if(!object||!canEditAppearance(object)||texture!==undefined&&!validTexture(texture))return false
+ const pieces=appearancePieces(object).filter(piece=>piece.type!=='group')
+ if(pieces.every(piece=>piece.texture===texture))return true
+ checkpoint();for(const piece of pieces){if(texture===undefined)delete piece.texture;else piece.texture=texture}
+ state.error='';return true
+}
 export function isOpening(o:Box){return o.type==='door'||o.type==='window'}
 export function wallLength(room:Room,side:WallSide){return side==='north'||side==='south'?room.width:room.depth}
 export function normalizeOpening(o:Box,room:Room){if(!isOpening(o))return;const side=o.wall??'north';o.wall=side;const length=wallLength(room,side);o.width=Math.min(o.width,length);o.height=Math.min(o.height,room.height);o.y=o.type==='door'?0:Math.min(Math.max(0,o.y),room.height-o.height);o.offset=Math.min(Math.max(o.width/2,o.offset??length/2),length-o.width/2);const along=o.offset-length/2;if(side==='north'||side==='south'){o.x=along;o.z=(side==='north'?-1:1)*(room.depth+room.thickness)/2}else{o.z=along;o.x=(side==='west'?-1:1)*(room.width+room.thickness)/2}}
@@ -193,8 +205,8 @@ export function edit(key:keyof Box,value:string,record=true){
  const o=selected.value;if(!o)return
  if(key==='collisions'){toggleSelectedCollisions();return}
  if(key==='wall'){if(!state.room||!['north','south','east','west'].includes(value))return;if(record)checkpoint();const candidate={...o,wall:value as WallSide};normalizeOpening(candidate,state.room);if(intersectsRoom(candidate,state.room)){state.error='El marco atraviesa otra pared. Reduce su profundidad antes de cambiar de pared.';return}if(objectCollision(candidate))return;Object.assign(o,candidate);state.error='';return}
- if(key==='color'&&(isStructural(o)||o.type==='group'))return
- if(key==='name'||key==='color'){if(record)checkpoint();Object.assign(o,{[key]:value});return}
+ if(key==='color'&&(isStructural(o)||o.type==='group'&&!canEditAppearance(o)))return
+ if(key==='name'||key==='color'){if(record)checkpoint();Object.assign(o,{[key]:value});if(key==='color')for(const piece of appearancePieces(o)){piece.color=value;delete piece.texture}return}
  const n=Number(value);if(!value.trim()||!Number.isFinite(n)||Math.abs(n)>100000||(['width','height','depth'].includes(key)&&n<1))return
  if(key==='rotationX'||key==='rotationY'||key==='rotationZ'){rotateSelected({...o,[key]:n},record);return}
  const candidate={...o,[key]:key==='y'?Math.max(0,n):n}
@@ -267,7 +279,7 @@ export function parseProject(value:string):{room:Room|null;objects:Box[];collisi
  if(data.structuralColor!==undefined&&(typeof data.structuralColor!=='string'||!/^#[0-9a-f]{6}$/i.test(data.structuralColor)))throw Error()
  const structuralColor=data.structuralColor??WALL_COLOR
  const collisions=data.collisions??false
- const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
+ const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.texture!==undefined&&(!validTexture(o.texture)||!['box','cylinder'].includes(o.type??'box')))throw Error();if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){if(room?.floorColor!==undefined&&(typeof room.floorColor!=='string'||!/^#[0-9a-f]{6}$/i.test(room.floorColor)))throw Error();if(room?.baseboard!==undefined&&typeof room.baseboard!=='boolean')throw Error();for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
  if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsRoom(o,room)))throw Error('collision')}
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.

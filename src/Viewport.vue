@@ -32,7 +32,12 @@ let roomCamera:{position:T.Vector3;target:T.Vector3}|null=null
 let roomFloor:T.Mesh|undefined
 let roomSignature='',syncing=false
 const meshes=new Map<string,T.Group>();const signatures=new Map<string,string>()
-function dispose(obj:T.Object3D){obj.traverse(child=>{if(child instanceof T.Mesh){child.geometry.dispose();const materials=Array.isArray(child.material)?child.material:[child.material];materials.forEach(m=>m.dispose())}})}
+function dispose(obj:T.Object3D){obj.traverse(child=>{if(child instanceof T.Mesh){child.geometry.dispose();const materials=Array.isArray(child.material)?child.material:[child.material];materials.forEach(m=>{m.map?.dispose();m.dispose()})}})}
+function furnitureMaterial(o:Box){
+ const material=new T.MeshStandardMaterial({color:o.texture?'#ffffff':o.color,roughness:.8})
+ if(o.texture){material.map=new T.TextureLoader().load(o.texture,undefined,undefined,()=>{material.map?.dispose();material.map=null;material.color.set(o.color);material.needsUpdate=true;state.error='No se pudo cargar la imagen de textura.'});material.map.colorSpace=T.SRGBColorSpace}
+ return material
+}
 function piece(parent:T.Object3D,w:number,h:number,d:number,x:number,y:number,z:number,color:string,id:string,glass=false){
  const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color,roughness:glass?.15:.8,transparent:glass,opacity:glass?.3:1,depthWrite:!glass}));mesh.position.set(x,y,z);mesh.castShadow=!glass;mesh.receiveShadow=true;mesh.userData.id=id;parent.add(mesh);return mesh
 }
@@ -53,8 +58,8 @@ function syncRoom(){
 function buildObject(o:Box){
  const group=new T.Group();group.userData.id=o.id
  if(o.type==='group'){for(const child of groupChildren({...o,x:0,y:0,z:0,rotationX:0,rotationY:0,rotationZ:0})){const mesh=buildObject(child);mesh.position.set(child.x/1000,(child.y+worldDimensions(child).height/2-o.height/2)/1000,child.z/1000);mesh.rotation.set(T.MathUtils.degToRad(child.rotationX??0),T.MathUtils.degToRad(child.rotationY??0),T.MathUtils.degToRad(child.rotationZ??0),'XYZ');mesh.traverse(node=>{node.userData.id=o.id});group.add(mesh)}return group}
- if(o.type==='cylinder'){const mesh=new T.Mesh(new T.CylinderGeometry(.5,.5,1,48),new T.MeshStandardMaterial({color:o.color,roughness:.8}));mesh.scale.set(o.width/1000,o.height/1000,o.depth/1000);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.id=o.id;group.add(mesh);return group}
- if(!isOpening(o)){piece(group,o.width/1000,o.height/1000,o.depth/1000,0,0,0,o.color,o.id);return group}
+ if(o.type==='cylinder'){const mesh=new T.Mesh(new T.CylinderGeometry(.5,.5,1,48),furnitureMaterial(o));mesh.scale.set(o.width/1000,o.height/1000,o.depth/1000);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.id=o.id;group.add(mesh);return group}
+ if(!isOpening(o)){const mesh=piece(group,o.width/1000,o.height/1000,o.depth/1000,0,0,0,o.color,o.id);if(o.texture){mesh.material.dispose();mesh.material=furnitureMaterial(o)}return group}
  const w=o.width/1000,h=o.height/1000,d=o.depth/1000,f=Math.min(.06,w/8,h/8)
  piece(group,f,h,d,-(w-f)/2,h/2,0,o.color,o.id);piece(group,f,h,d,(w-f)/2,h/2,0,o.color,o.id);piece(group,w-2*f,f,d,0,h-f/2,0,o.color,o.id)
  if(o.type==='window'){
@@ -69,7 +74,7 @@ function buildObject(o:Box){
 }
 function sync(){if(!transform)return;syncing=true;syncRoom()
  for(const [id,mesh] of meshes)if(!state.objects.some(o=>o.id===id)){if(transform.object===mesh)transform.detach();scene.remove(mesh);dispose(mesh);meshes.delete(id);signatures.delete(id)}
- for(const o of state.objects){const signature=JSON.stringify([o.type,o.width,o.height,o.depth,o.color,o.children]);let mesh=meshes.get(o.id)
+ for(const o of state.objects){const signature=JSON.stringify([o.type,o.width,o.height,o.depth,o.color,o.texture,o.children]);let mesh=meshes.get(o.id)
  if(!mesh||signatures.get(o.id)!==signature){if(mesh){for(const child of [...mesh.children]){mesh.remove(child);dispose(child)}const rebuilt=buildObject(o);for(const child of [...rebuilt.children])mesh.add(child)}else{mesh=buildObject(o);meshes.set(o.id,mesh);scene.add(mesh)}signatures.set(o.id,signature)}
  const opening=isOpening(o),dimensions=worldDimensions(o);mesh.position.set(o.x/1000,(o.y+(opening?0:dimensions.height/2))/1000,o.z/1000);if(opening)mesh.rotation.set(0,(o.wall==='east'||o.wall==='west')?Math.PI/2:0,0);else mesh.rotation.set(T.MathUtils.degToRad(o.rotationX??0),T.MathUtils.degToRad(o.rotationY??0),T.MathUtils.degToRad(o.rotationZ??0),'XYZ')
  mesh.traverse(child=>{if(child instanceof T.Mesh)child.material.emissive.set(selection.value.some(item=>item.id===o.id)?'#183c31':'#000000')})

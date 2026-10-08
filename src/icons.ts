@@ -17,6 +17,7 @@ export const iconPaths={
  undo:['M3 10h6M3 10V4','M3 10a8 8 0 1 1 1 8'],
  redo:['M21 10h-6M21 10V4','M21 10a8 8 0 1 0-1 8'],
  palette:['M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1-3c-1-1 0-3 2-3h2a3 3 0 0 0 3-3 9 9 0 0 0-9-9Z','M7 10h.01M10 7h.01M15 7h.01M18 10h.01'],
+ image:['M3 3h18v18H3Z','m3 17 6-6 4 4 3-3 5 5','M8 7h.01'],
  reset:['M5 5l14 14'],
  save:['M4 3h13l4 4v14H3V3Z','M7 3v6h9V3M7 21v-8h10v8'],
  open:['M3 20V5h6l2 3h10v4','M3 20l3-8h16l-3 8Z'],
