@@ -104,3 +104,24 @@ header button,.create-custom-button,.custom-library-heading button{display:inlin
 .canvas-wrap .toolbar .texture-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #dedede;padding-top:10px}
 .canvas-wrap .toolbar .texture-actions button{width:100%;gap:6px;font-size:12px;background:#ededed;padding:8px 12px}
 .canvas-wrap .toolbar .texture-actions button:hover{background:#dedede}
+.object-list-entry{display:flex;align-items:center;gap:2px;margin-bottom:5px;min-width:0;padding:0 6px;border:1px solid transparent;border-radius:7px;cursor:grab;user-select:none}
+.object-list-entry:hover,.object-list-entry:focus-within{background:#324455}
+.object-list-entry.active{background:#274337;border-color:#436e58}
+.object-list-entry:active{cursor:grabbing}
+.object-list-entry .object-row,.object-list-entry .object-row.active{flex:1;min-width:0;width:auto;margin:0;padding:9px 6px;gap:6px;background:transparent;border-color:transparent;cursor:inherit}
+.object-list-entry .object-row>span:nth-child(2){min-width:0;flex:1}
+.object-list-entry .object-rename{flex:0 0 24px;width:24px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#96aabd;opacity:0}
+.object-list-entry .object-rename .app-icon{width:14px;min-width:14px;height:14px;flex:0 0 14px}
+.object-list-entry:hover .object-rename,.object-list-entry:focus-within .object-rename{opacity:1}
+.object-list-entry .object-rename:hover{color:#dce5ed}
+@media (hover:none){.object-list-entry .object-rename{opacity:1}}
+.object-list-entry.dragging{opacity:.45}
+.object-name-input{flex:1;min-width:0;width:100%;padding:8px 6px;border:1px solid #70d0dc;border-radius:6px;background:#111b27;color:#e1eaf3;font-size:12px}
+
+.object-list-entry [draggable=true]{-webkit-user-drag:element}
+.object-list-entry button>*{pointer-events:none}
+
+.object-list-entry{position:relative}
+.object-list-entry.drop-before::before,.object-list-entry.drop-after::after{content:'';position:absolute;left:0;right:0;height:3px;background:#70d0dc;border-radius:3px;box-shadow:0 0 7px #70d0dc66;pointer-events:none}
+.object-list-entry.drop-before::before{top:-4px}
+.object-list-entry.drop-after::after{bottom:-4px}

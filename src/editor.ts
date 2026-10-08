@@ -267,6 +267,14 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);const candidate={...o,offset:(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2,y:position.y};normalizeOpening(candidate,state.room);moveOpening(o,candidate)}else applyMovement(o,position)
 }
 export function editProjectName(value:string){const name=value.trim();if(!name||name.length>120||name===state.projectName)return;checkpoint();state.projectName=name}
+export function renameObject(id:string,value:string){const object=state.objects.find(o=>o.id===id),name=value.trim();if(!object||!name||name.length>120||name===object.name)return;checkpoint();object.name=name}
+export function reorderObjects(ids:string[]){
+ if(new Set(ids).size!==ids.length)return
+ const members=ids.map(id=>state.objects.find(object=>object.id===id));if(members.some(object=>!object))return
+ const included=new Set(ids),current=state.objects.filter(object=>included.has(object.id))
+ if(current.every((object,index)=>object.id===ids[index]))return
+ checkpoint();let index=0;state.objects=state.objects.map(object=>included.has(object.id)?members[index++]!:object)
+}
 export function projectJSON(){
  const main=customEditing.value&&customSession?JSON.parse(customSession.scene):{projectName:state.projectName,room:state.room,objects:collisionObjects().map(object=>isStructural(object)&&object.type!=='group'?{...object,color:state.structuralColor}:object),collisions:state.collisions,structuralColor:state.structuralColor}
  return JSON.stringify({version:6,units:'mm',projectName:main.projectName,room:main.room,objects:main.objects,collisions:main.collisions,structuralColor:main.structuralColor,customObjects:state.customObjects,...(customEditing.value?{customDraft:{objects:state.objects,...(customEditingId.value?{editingId:customEditingId.value}:{})}}:{})})
