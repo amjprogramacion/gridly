@@ -4,7 +4,7 @@ import { worldDimensions } from './geometry.ts'
 import { objectBounds, isStructural } from './objectCollisions.ts'
 
 export function cloneObject(object:Box,newIds=false):Box {
- const copy:Box=JSON.parse(JSON.stringify(object))
+ const copy:Box={...object,...(object.children?{children:object.children.map(child=>cloneObject(child))}:{}),...(object.groupSize?{groupSize:{...object.groupSize}}:{})}
  function renew(o:Box){o.id=crypto.randomUUID();o.children?.forEach(renew)}
  if(newIds)renew(copy)
  return copy

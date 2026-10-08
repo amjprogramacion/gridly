@@ -80,6 +80,11 @@ export function resolveLocalWrite(current: LocalProject | undefined, desired: Lo
 }
 
 export interface ProjectRepository {
+  recovery?: {
+    list(accountId:string|null):Promise<{key:string;project:LocalProject}[]>
+    write(key:string,project:LocalProject):Promise<void>
+    remove(key:string,writeId:string):Promise<void>
+  }
   active(accountId: string | null): Promise<LocalProject | undefined>
   get(id: string): Promise<LocalProject | undefined>
   list(accountId: string | null, deleted?: boolean): Promise<LocalProject[]>

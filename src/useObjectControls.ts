@@ -1,6 +1,6 @@
 import { shallowRef, reactive, onBeforeUnmount } from 'vue'
 import * as T from 'three'
-import { state, selected, isOpening, checkpoint, editOpeningClearance, moveSelected, dragOpeningToWall, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
+import { state, objectInteraction, selected, isOpening, checkpoint, editOpeningClearance, moveSelected, dragOpeningToWall, beginRotation, endRotation, rotateSelected, edit, resizeSelectedFromFace, type Box } from './editor'
 import type { DimensionKey } from './faceResize'
 import { projectSelectionOutline } from './selectionOutline'
 import { visibleWallSides } from './walls'
@@ -100,7 +100,7 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
  function start(e:PointerEvent,kind:Drag['kind'],handle?:Handle,rotation?:Drag['rotation'],tangent?:Point,captureTarget?:HTMLElement){
   if(e.button!==0||!selected.value)return;e.preventDefault();e.stopPropagation()
   const original={...selected.value},point=cursor(e),target=captureTarget??e.currentTarget as HTMLElement
-  if(kind==='rotate')beginRotation();else checkpoint()
+  if(kind==='rotate')beginRotation();else checkpoint();objectInteraction.value=true
   drag={kind,original,start:point,handle,rotation,tangent,target,pointer:e.pointerId}
   rotationInteraction.dragging=kind==='rotate'&&rotation?rotation.slice(-1) as 'X'|'Y'|'Z':null
   if(kind==='move'){drag.plane=new T.Plane(new T.Vector3(0,1,0),-original.y/1000);drag.anchor=rayPoint(point,drag.plane)??undefined}
@@ -113,7 +113,7 @@ export function useObjectControls(setInteraction:(active:boolean)=>void){
   else if(drag.kind==='lift'){const base=new T.Vector3(o.x/1000,o.y/1000,o.z/1000),a=project(base),b=project(base.clone().add(new T.Vector3(0,1,0))),sx=b.x-a.x,sy=b.y-a.y,den=sx*sx+sy*sy;if(den>1)moveSelected(o.x,o.y+(dx*sx+dy*sy)/den*1000,o.z,['y'])}
   else if(drag.kind==='rotate'&&drag.rotation){const distance=drag.tangent?dx*drag.tangent.x+dy*drag.tangent.y:dx;let angle=(o[drag.rotation]??0)+distance*.6;if(state.snap)angle=Math.round(angle/15)*15;rotateSelected({rotationX:o.rotationX,rotationY:o.rotationY,rotationZ:o.rotationZ,[drag.rotation]:angle})}
  }
- function finish(e?:PointerEvent){if(!drag||e&&e.pointerId!==drag.pointer)return;const old=drag;drag=null;rotationInteraction.dragging=null;if(old.target.hasPointerCapture(old.pointer))old.target.releasePointerCapture(old.pointer);endRotation();setInteraction(false)}
+ function finish(e?:PointerEvent){if(!drag||e&&e.pointerId!==drag.pointer)return;const old=drag;drag=null;rotationInteraction.dragging=null;if(old.target.hasPointerCapture(old.pointer))old.target.releasePointerCapture(old.pointer);endRotation();objectInteraction.value=false;setInteraction(false)}
  function changeMeasure(e:Event,key:DimensionKey){edit(key,(e.target as HTMLInputElement).value,false);delete drafts[key];(e.target as HTMLInputElement).value=String(selected.value?.[key]??'')}
  function changeClearance(e:Event,key:ClearanceKey){
   editOpeningClearance(key,(e.target as HTMLInputElement).value)

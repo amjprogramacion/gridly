@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import type { LocalProject } from './localProjects.ts'
-import { parseProject, projectJSON, restoreProject, setProjectImporter, state } from './editor.ts'
+import { parseProject, projectJSON, projectRevision, restoreProject, setProjectImporter, state } from './editor.ts'
 import { openProjectRepository } from './projectRepository.ts'
 import { startProjectPersistence, startRecoveryPersistence } from './projectPersistence.ts'
 
@@ -25,7 +25,7 @@ export async function initializeLocalProjects() {
       try { return await persistence.create(document) } finally { publishProject(); projectTransition.value = false }
     })
     const flush = () => { void persistence.flush().then(publishProject).catch(() => {}) }
-    watch(projectJSON, document => { if (document !== persistence.current().document) flush() })
+    watch(projectRevision, flush)
     window.addEventListener('pagehide', flush)
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush() })
   } catch {
@@ -39,7 +39,7 @@ export async function initializeLocalProjects() {
       const flush = () => {
         try { fallback.flush() } catch { state.autosaveError = 'No se pudo autoguardar. Usa Descargar proyecto para conservar los cambios.' }
       }
-      watch(projectJSON, flush)
+      watch(projectRevision, flush)
       window.addEventListener('pagehide', flush)
       document.addEventListener('visibilitychange', () => { if (document.hidden) flush() })
     } catch { /* Editing and download remain available if both stores are blocked. */ }

@@ -130,3 +130,9 @@ header button,.create-custom-button,.custom-library-heading button{display:inlin
 .object-list-entry .object-visibility .app-icon{width:16px;min-width:16px;height:16px;flex:0 0 16px}
 .object-list-entry .object-visibility:hover{color:#dce5ed}
 .object-list-entry.hidden .object-row{opacity:.45}
+
+.construction-buttons .import-stl-button span{font-size:11px;color:inherit;margin:0}
+
+.construction-buttons .import-stl-button{border-style:dashed;border-color:#6e9fbd;background:#243949;color:#bedff1}
+.construction-buttons .import-stl-button:hover{background:#304d61}
+.construction-buttons .import-stl-button .app-icon{width:24px;height:24px;color:inherit}

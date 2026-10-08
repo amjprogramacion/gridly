@@ -1,4 +1,6 @@
+import { geometrySignature } from './geometrySignature.ts'
 import { openingClearances, type ClearanceKey } from './openingClearances.ts'
+import { parseSTL, validSTLMesh } from './stl.ts'
 import { validTexture } from './textures.ts'
 import { groupChildren, makeGroup, validateGroups, cloneObject, recolorStructure, validGroupScale } from './groups.ts'
 import { reactive, computed, ref, watch } from 'vue'
@@ -10,7 +12,7 @@ import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
-export interface Box { hidden?:boolean; texture?:string; atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface Box { stl?:number[]; hidden?:boolean; texture?:string; atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface CustomObject { id:string; name:string; object:Box }
 export const customEditing=ref(false)
 export const customEditingId=ref('')
@@ -28,6 +30,8 @@ export const collisionSelection=computed(()=>{
 })
 function collisionObjects(objects:Box[]=state.objects){return objects.map(object=>({...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}))}
 function collidable(object:Box){return {...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}}
+export const objectInteraction=ref(false)
+export const projectRevision=computed((previous:string|undefined):string=>objectInteraction.value&&previous!==undefined?previous:geometrySignature([state.projectName,state.objects,state.room,state.customObjects,state.collisions,state.structuralColor,customEditing.value,customEditingId.value]))
 export const selection=computed(()=>state.objects.filter(o=>!o.hidden&&(state.selection.includes(o.id)||o.id===state.selected)))
 export function selectObject(id:string,multiple=false){
  if(!multiple||id==='room'||!id){state.selection=[];state.selected=id;return}
@@ -79,7 +83,8 @@ function applyMovement(o:Box,position:Pick<Box,'x'|'y'|'z'>){const result=limitM
 const past:string[]=[],future:string[]=[]
 export const history=reactive({undo:0,redo:0})
 function snapshot(){return JSON.stringify({projectName:state.projectName,customObjects:state.customObjects,objects:state.objects,room:state.room,selected:state.selected,selection:state.selection,collisions:state.collisions,structuralColor:state.structuralColor})}
-function restore(value:string){const data=JSON.parse(value);state.projectName=data.projectName??DEFAULT_PROJECT_NAME;state.customObjects=data.customObjects??[];state.objects=data.objects;state.room=data.room;state.selection=data.selection??[];state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
+function freezeObjectGeometry(object:Box){if(object.stl)Object.freeze(object.stl);object.children?.forEach(freezeObjectGeometry)}
+function restore(value:string){const data=JSON.parse(value);for(const object of [...data.objects,...(data.customObjects??[]).map((entry:CustomObject)=>entry.object)])freezeObjectGeometry(object);state.projectName=data.projectName??DEFAULT_PROJECT_NAME;state.customObjects=data.customObjects??[];state.objects=data.objects;state.room=data.room;state.selection=data.selection??[];state.selected=data.selected;state.collisions=data.collisions??false;state.structuralColor=data.structuralColor??WALL_COLOR}
 function counts(){history.undo=past.length;history.redo=future.length}
 export function checkpoint(){past.push(snapshot());if(past.length>100)past.shift();future.length=0;counts()}
 export function undo(){if(!past.length)return;future.push(snapshot());restore(past.pop()!);counts()}
@@ -267,6 +272,15 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);const candidate={...o,offset:(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2,y:position.y};normalizeOpening(candidate,state.room);moveOpening(o,candidate)}else applyMovement(o,position)
 }
 export function editProjectName(value:string){const name=value.trim();if(!name||name.length>120||name===state.projectName)return;checkpoint();state.projectName=name}
+export function importSTL(buffer:ArrayBuffer,name:string){
+ if(customEditing.value)return false
+ const mesh=parseSTL(buffer)
+ if(validateGroups(state.objects).length>=1000){state.error='El proyecto ha alcanzado el límite de 1000 elementos.';return false}
+ const object:Box={id:crypto.randomUUID(),type:'box',name:name.replace(/\.stl$/i,'').trim().slice(0,120)||'Modelo STL',x:0,y:0,z:0,width:mesh.width,height:mesh.height,depth:mesh.depth,stl:mesh.vertices,color:'#779b8e',collisions:state.collisions}
+ const placed=findPlacement(object)
+ if(!placed){state.error='El modelo STL no cabe en la estancia o su espacio está ocupado.';return false}
+ checkpoint();state.objects.push(placed);selectObject(placed.id);state.error='';return true
+}
 export function toggleObjectVisibility(id:string){
  const object=state.objects.find(o=>o.id===id)
  if(!object||customEditing.value||!canEditAppearance(object))return
@@ -293,7 +307,7 @@ export function parseProject(value:string):{room:Room|null;objects:Box[];collisi
  if(data.structuralColor!==undefined&&(typeof data.structuralColor!=='string'||!/^#[0-9a-f]{6}$/i.test(data.structuralColor)))throw Error()
  const structuralColor=data.structuralColor??WALL_COLOR
  const collisions=data.collisions??false
- const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.hidden!==undefined&&(typeof o.hidden!=='boolean'||!canEditAppearance(o)))throw Error();if(o.texture!==undefined&&(!validTexture(o.texture)||!['box','cylinder'].includes(o.type??'box')))throw Error();if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
+ const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.stl!==undefined){if((o.type??'box')!=='box'||!validSTLMesh(o.stl))throw Error();Object.freeze(o.stl)}if(o.hidden!==undefined&&(typeof o.hidden!=='boolean'||!canEditAppearance(o)))throw Error();if(o.texture!==undefined&&(!validTexture(o.texture)||!['box','cylinder'].includes(o.type??'box')))throw Error();if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){if(room?.floorColor!==undefined&&(typeof room.floorColor!=='string'||!/^#[0-9a-f]{6}$/i.test(room.floorColor)))throw Error();if(room?.baseboard!==undefined&&typeof room.baseboard!=='boolean')throw Error();for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
  if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>!o.hidden&&intersectsRoom(o,room)))throw Error('collision')}
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.
@@ -394,6 +408,6 @@ export function startAutosave(getStorage:()=>ProjectStorage){
   try{getStorage().setItem(AUTOSAVE_KEY,value);savedJSON=value;state.autosaveError=''}
   catch{state.autosaveError='No se pudo autoguardar en este navegador. Usa Descargar proyecto para conservar los cambios.'}
  }
- const stop=watch(projectJSON,flush)
+ const stop=watch(projectRevision,flush)
  return {flush,stop}
 }

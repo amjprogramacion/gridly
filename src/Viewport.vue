@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { stlGeometry } from './stl'
+import { geometrySignature } from './geometrySignature'
 import AppIcon from './AppIcon.vue'
 import { onMounted, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import * as T from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
-import { state, selected, selection, selectObject, checkpoint, FLOOR_COLOR, isOpening, moveSelected, rotateSelected, beginRotation, endRotation, type Box, type WallSide } from './editor'
+import { state, objectInteraction, selected, selection, selectObject, checkpoint, FLOOR_COLOR, isOpening, moveSelected, rotateSelected, beginRotation, endRotation, type Box, type WallSide } from './editor'
 import { projectGroupTexture, sharedGroupTexture } from './groupTexture'
 import { groupChildren } from './groups'
 import { worldDimensions } from './geometry'
@@ -43,7 +45,7 @@ function piece(parent:T.Object3D,w:number,h:number,d:number,x:number,y:number,z:
  const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color,roughness:glass?.15:.8,transparent:glass,opacity:glass?.3:1,depthWrite:!glass}));mesh.position.set(x,y,z);mesh.castShadow=!glass;mesh.receiveShadow=true;mesh.userData.id=id;parent.add(mesh);return mesh
 }
 function syncRoom(){
- const signature=JSON.stringify([state.room,state.structuralColor,state.objects.filter(o=>isOpening(o)||o.type==='column'||o.type==='group')]);if(signature===roomSignature)return;roomSignature=signature
+ const signature=geometrySignature([state.room,state.structuralColor,state.objects.filter(o=>isOpening(o)||o.type==='column'||o.type==='group')]);if(signature===roomSignature)return;roomSignature=signature
  for(const child of [...roomGroup.children]){roomGroup.remove(child);dispose(child)}roomWalls.length=0;roomFloor=undefined
  if(!state.room)return
  const r=state.room,w=r.width/1000,d=r.depth/1000,t=r.thickness/1000
@@ -59,6 +61,7 @@ function syncRoom(){
 function buildObject(o:Box){
  const group=new T.Group();group.userData.id=o.id
  if(o.type==='group'){for(const child of groupChildren({...o,x:0,y:0,z:0,rotationX:0,rotationY:0,rotationZ:0})){const mesh=buildObject(child);mesh.position.set(child.x/1000,(child.y+worldDimensions(child).height/2-o.height/2)/1000,child.z/1000);mesh.rotation.set(T.MathUtils.degToRad(child.rotationX??0),T.MathUtils.degToRad(child.rotationY??0),T.MathUtils.degToRad(child.rotationZ??0),'XYZ');mesh.traverse(node=>{node.userData.id=o.id});group.add(mesh)}if(sharedGroupTexture(o))projectGroupTexture(group,{width:o.width/1000,height:o.height/1000,depth:o.depth/1000});return group}
+ if(o.stl){const mesh=new T.Mesh(stlGeometry(o.stl),furnitureMaterial(o));mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.id=o.id;group.add(mesh);projectGroupTexture(group,{width:1,height:1,depth:1});mesh.scale.set(o.width/1000,o.height/1000,o.depth/1000);return group}
  if(o.type==='cylinder'){const mesh=new T.Mesh(new T.CylinderGeometry(.5,.5,1,48),furnitureMaterial(o));mesh.scale.set(o.width/1000,o.height/1000,o.depth/1000);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.id=o.id;group.add(mesh);return group}
  if(!isOpening(o)){const mesh=piece(group,o.width/1000,o.height/1000,o.depth/1000,0,0,0,o.color,o.id);if(o.texture){mesh.material.dispose();mesh.material=furnitureMaterial(o)}return group}
  const w=o.width/1000,h=o.height/1000,d=o.depth/1000,f=Math.min(.06,w/8,h/8)
@@ -75,8 +78,9 @@ function buildObject(o:Box){
 }
 function sync(){if(!transform)return;syncing=true;syncRoom()
  for(const [id,mesh] of meshes)if(!state.objects.some(o=>o.id===id)){if(transform.object===mesh)transform.detach();scene.remove(mesh);dispose(mesh);meshes.delete(id);signatures.delete(id)}
- for(const o of state.objects){const signature=JSON.stringify([o.type,o.width,o.height,o.depth,o.color,o.texture,o.children]);let mesh=meshes.get(o.id)
+ for(const o of state.objects){const signature=geometrySignature([o.type,o.stl?null:o.width,o.stl?null:o.height,o.stl?null:o.depth,o.color,o.texture,o.children,{stl:o.stl}]);let mesh=meshes.get(o.id)
  if(!mesh||signatures.get(o.id)!==signature){if(mesh){for(const child of [...mesh.children]){mesh.remove(child);dispose(child)}const rebuilt=buildObject(o);for(const child of [...rebuilt.children])mesh.add(child)}else{mesh=buildObject(o);meshes.set(o.id,mesh);scene.add(mesh)}signatures.set(o.id,signature)}
+ if(o.stl)(mesh.children[0] as T.Mesh).scale.set(o.width/1000,o.height/1000,o.depth/1000)
  const opening=isOpening(o),dimensions=worldDimensions(o);mesh.position.set(o.x/1000,(o.y+(opening?0:dimensions.height/2))/1000,o.z/1000);if(opening)mesh.rotation.set(0,(o.wall==='east'||o.wall==='west')?Math.PI/2:0,0);else mesh.rotation.set(T.MathUtils.degToRad(o.rotationX??0),T.MathUtils.degToRad(o.rotationY??0),T.MathUtils.degToRad(o.rotationZ??0),'XYZ')
  mesh.traverse(child=>{if(child instanceof T.Mesh)child.material.emissive.set(selection.value.some(item=>item.id===o.id)?'#183c31':'#000000')})
  }
@@ -99,7 +103,7 @@ onMounted(()=>{try{
  camera=new T.PerspectiveCamera(42,1,.01,500);orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.addEventListener('start',()=>{cameraInteracting=true;cameraMoving.value=true;controls.rotationInteraction.hovered=null});orbit.addEventListener('end',()=>{cameraInteracting=false});view('Perspectiva');previousCameraPosition.copy(camera.position);previousCameraRotation.copy(camera.quaternion);scene.add(new T.HemisphereLight(0xffffff,0x263346,2.8))
  const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,8,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);Object.assign(light.shadow.camera,{left:-10,right:10,top:10,bottom:-10});scene.add(light)
  const floor=workFloor=new T.Mesh(new T.PlaneGeometry(30,30),new T.MeshStandardMaterial({color:'#141a23',roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=props.workshop?-.003:-.06;floor.receiveShadow=true;scene.add(floor);const grid=workGrid=new T.GridHelper(20,40,props.workshop?'#718399':'#425064',props.workshop?'#53677d':'#263344');grid.position.y=props.workshop?-.001:-.055;scene.add(grid)
- transform=new TransformControls(camera,renderer.domElement);transform.setSize(.85);scene.add(transform.getHelper());transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});transform.addEventListener('mouseDown',()=>{if(transform.getMode()==='rotate')beginRotation();else checkpoint()});transform.addEventListener('mouseUp',()=>endRotation());transform.addEventListener('objectChange',()=>{if(syncing||!transform.object)return;const object=state.objects.find(o=>o.id===state.selected);if(!object)return;if(transform.getMode()==='rotate'){const r=transform.object.rotation;rotateSelected({rotationX:T.MathUtils.radToDeg(r.x),rotationY:T.MathUtils.radToDeg(r.y),rotationZ:T.MathUtils.radToDeg(r.z)});sync();return}const p=transform.object.position;const dimensions=worldDimensions(object);const baseY=isOpening(object)?p.y:p.y-dimensions.height/2000;const axis=transform.axis??'XYZ';const axes=(['x','y','z'] as Axis[]).filter(a=>axis.includes(a.toUpperCase()));moveSelected(p.x*1000,baseY*1000,p.z*1000,axes);sync()})
+ transform=new TransformControls(camera,renderer.domElement);transform.setSize(.85);scene.add(transform.getHelper());transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});transform.addEventListener('mouseDown',()=>{if(transform.getMode()==='rotate')beginRotation();else checkpoint();objectInteraction.value=true});transform.addEventListener('mouseUp',()=>{endRotation();objectInteraction.value=false});transform.addEventListener('objectChange',()=>{if(syncing||!transform.object)return;const object=state.objects.find(o=>o.id===state.selected);if(!object)return;if(transform.getMode()==='rotate'){const r=transform.object.rotation;rotateSelected({rotationX:T.MathUtils.radToDeg(r.x),rotationY:T.MathUtils.radToDeg(r.y),rotationZ:T.MathUtils.radToDeg(r.z)});sync();return}const p=transform.object.position;const dimensions=worldDimensions(object);const baseY=isOpening(object)?p.y:p.y-dimensions.height/2000;const axis=transform.axis??'XYZ';const axes=(['x','y','z'] as Axis[]).filter(a=>axis.includes(a.toUpperCase()));moveSelected(p.x*1000,baseY*1000,p.z*1000,axes);sync()})
  const canvas=renderer.domElement
  let down={x:0,y:0},objectGesture:{event:PointerEvent;id:string;dragging:boolean}|null=null
  function hit(e:PointerEvent){
@@ -161,7 +165,7 @@ onMounted(()=>{try{
  if(!cameraMoving.value)additionalOutlines.value=selection.value.filter(o=>o.id!==state.selected&&meshes.get(o.id)?.visible).map(o=>({id:o.id,path:projectSelectionOutline(o,meshes.get(o.id)!,camera,host.value!.clientWidth,host.value!.clientHeight)}))
  controls.update(camera,meshes.get(state.selected),host.value!.clientWidth,host.value!.clientHeight,host.value!.getBoundingClientRect(),props.construction);renderer.render(scene,camera)})
  }catch(e){console.error(e);error.value='No se pudo iniciar el visor 3D. Comprueba que WebGL esté habilitado en tu navegador.'}})
-watch(()=>[state.objects,state.room,state.structuralColor,state.selected,state.selection,state.snap,state.wallSnap,state.step,state.transformMode],sync,{deep:true})
+watch(()=>geometrySignature([state.objects,state.room,state.structuralColor,state.selected,state.selection,state.snap,state.wallSnap,state.step,state.transformMode]),sync)
 watch(()=>props.workshop,workshop=>{
  workshopAxes.visible=workshop
  if(!camera)return
@@ -171,7 +175,7 @@ watch(()=>props.workshop,workshop=>{
  else if(roomCamera){camera.position.copy(roomCamera.position);orbit.target.copy(roomCamera.target);orbit.update();roomCamera=null}else view('Perspectiva')
 })
 
-onBeforeUnmount(()=>{controls.finish();observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();workshopAxes.dispose();dispose(scene);renderer?.dispose()})
+onBeforeUnmount(()=>{controls.finish();objectInteraction.value=false;observer?.disconnect();renderer?.setAnimationLoop(null);orbit?.dispose();transform?.dispose();workshopAxes.dispose();dispose(scene);renderer?.dispose()})
 </script>
 <template><div ref="host" class="viewport"><p v-if="error" class="viewport-error">{{error}}</p><div v-if="additionalOutlines.length" v-show="!cameraMoving" class="object-controls" aria-hidden="true"><svg class="object-dimensions" width="100%" height="100%"><path v-for="outline in additionalOutlines" :key="outline.id" :d="outline.path" :data-object-id="outline.id" class="selection-outline"/></svg></div><div v-if="overlay?.visible" v-show="!cameraMoving" class="object-controls" @pointermove="controls.move" @pointerup="controls.finish" @pointercancel="controls.finish" @lostpointercapture="controls.finish">
 <svg class="object-dimensions" width="100%" height="100%" aria-hidden="true"><defs><marker id="dimension-arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0 0L6 3L0 6Z" fill="#aabed0"/></marker></defs><path :d="overlay.outline" :data-object-id="state.selected" class="selection-outline"/><line v-for="measure in overlay.measures" :key="measure.key" :x1="measure.start.x" :y1="measure.start.y" :x2="measure.end.x" :y2="measure.end.y" class="dimension-line" marker-start="url(#dimension-arrow)" marker-end="url(#dimension-arrow)"/><line v-for="measure in overlay.measures" :key="measure.key+'leader'" :x1="(measure.start.x+measure.end.x)/2" :y1="(measure.start.y+measure.end.y)/2" :x2="measure.point.x" :y2="measure.point.y" class="dimension-leader"/><g v-for="distance in overlay.clearances" :key="distance.key" class="clearance-lines"><line :x1="distance.start.x" :y1="distance.start.y" :x2="distance.end.x" :y2="distance.end.y" marker-start="url(#dimension-arrow)" marker-end="url(#dimension-arrow)"/><line :x1="(distance.start.x+distance.end.x)/2" :y1="(distance.start.y+distance.end.y)/2" :x2="distance.point.x" :y2="distance.point.y" class="dimension-leader"/></g></svg>

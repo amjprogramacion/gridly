@@ -76,6 +76,16 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
       warning = 'No se pudo recuperar una copia local. Se conserva para recuperación; descarga tu proyecto como respaldo.'
     }
   }
+  async function recoverIndexedJournals(owner:string|null){
+    if(!repository.recovery)return
+    try{
+      for(const entry of await repository.recovery.list(owner)){
+        try{validateLocalProject(entry.project);editor.validate(entry.project.document);const saved=await repository.write(entry.project);if(saved.id!==entry.project.id)warning='Se conservaron ambas versiones de un proyecto modificado en otra pestaña.';await repository.recovery.remove(entry.key,entry.project.writeId)}
+        catch{warning='No se pudo recuperar una copia local. Se conserva para recuperación; descarga tu proyecto como respaldo.'}
+      }
+    }catch{warning='No se pudo leer la copia de recuperación; descarga tu proyecto como respaldo.'}
+  }
+  await recoverIndexedJournals(null)
   const active = await repository.active(null)
   if (active) {
     validateLocalProject(active); editor.validate(active.document)
@@ -111,11 +121,13 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
       raw = JSON.stringify(desired)
       storage.setItem(journalKey, raw)
     } catch {
-      editor.error('No se pudo guardar la copia de recuperación. Usa Descargar proyecto para conservar los cambios.')
+      if(!repository.recovery)editor.error('No se pudo guardar la copia de recuperación. Usa Descargar proyecto para conservar los cambios.')
       // Still attempt IndexedDB if localStorage is blocked/full.
       raw = ''
     }
     const task = tail.then(async () => {
+      let indexedJournal=false
+      if(!raw&&repository.recovery){try{await repository.recovery.write(journalKey,desired);indexedJournal=true}catch{/* Still attempt the main project write. */}}
       if (desired.id !== project.id && project.recoveredFrom !== desired.id) throw Error('Project context changed')
       // A preceding write may have advanced our own version or created a fork.
       const pending = { ...desired, id: project.id, localVersion: project.localVersion, recoveredFrom: project.recoveredFrom,
@@ -131,7 +143,8 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
       // recoveredFrom records ancestry, not a conflict in this write.
       const saveWarning = saved.id !== pending.id ? 'Otra pestaña modificó este proyecto. Tu trabajo se ha conservado como una copia independiente.' : ''
       if (raw && storage.getItem(journalKey) === raw) storage.removeItem(journalKey)
-      editor.error(raw ? saveWarning : 'Proyecto guardado, pero la copia de recuperación no está disponible. Usa Descargar proyecto como respaldo.')
+      if(indexedJournal){try{await repository.recovery!.remove(journalKey,desired.writeId)}catch{/* A committed journal can safely replay on reload. */}}
+      editor.error(raw || indexedJournal ? saveWarning : 'Proyecto guardado, pero la copia de recuperación no está disponible. Usa Descargar proyecto como respaldo.')
     })
     tail = task.catch(() => {
       editor.error('No se pudo autoguardar el proyecto. La copia de recuperación se conservará si está disponible. Usa Descargar proyecto como respaldo.')
@@ -196,6 +209,8 @@ export async function startProjectPersistence(repository: ProjectRepository, sto
         } catch { editor.error('Una copia pendiente no pudo recuperarse; se conserva en este dispositivo.') }
       }
     }
+    await recoverIndexedJournals(owner)
+    if(warning)editor.error(warning)
     let active: LocalProject | undefined
     try {
       active = await repository.active(owner) ?? await repository.active(null)

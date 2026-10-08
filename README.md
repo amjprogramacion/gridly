@@ -159,3 +159,5 @@ No se incluyen snap entre objetos libres, importación STL, paredes irregulares 
 Los controles y cotas pueden necesitar ajustes adicionales en piezas muy pequeñas o vistas extremas. Vite muestra un aviso por el tamaño del bundle de Three.js; la compilación termina correctamente.
 
 `node_modules/`, `dist/`, capturas de comprobación y archivos locales están excluidos mediante `.gitignore`.
+
+En Muebles, **Importar STL** permite añadir modelos ASCII o binarios sin límite impuesto de tamaño de archivo ni de triángulos. Las coordenadas se interpretan en milímetros y el eje vertical Z se convierte al eje Y del visor. El modelo se coloca en un espacio libre; conserva su geometría en el proyecto y admite tamaño, giro, materiales, grupos e historial. Las colisiones usan su caja envolvente.

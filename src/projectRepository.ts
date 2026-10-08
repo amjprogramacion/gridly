@@ -5,10 +5,11 @@ const scope = (accountId: string | null) => accountId === null ? 'local' : `acco
 
 export async function openProjectRepository(factory: IDBFactory): Promise<ProjectRepository> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = factory.open(PROJECT_DATABASE, 1)
+    const request = factory.open(PROJECT_DATABASE, 2)
     request.onupgradeneeded = () => {
-      request.result.createObjectStore('projects', { keyPath: 'id' })
-      request.result.createObjectStore('settings')
+      if(!request.result.objectStoreNames.contains('projects'))request.result.createObjectStore('projects', { keyPath: 'id' })
+      if(!request.result.objectStoreNames.contains('settings'))request.result.createObjectStore('settings')
+      if(!request.result.objectStoreNames.contains('recovery'))request.result.createObjectStore('recovery', {keyPath:'key'})
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -18,7 +19,7 @@ export async function openProjectRepository(factory: IDBFactory): Promise<Projec
 
   function transaction<T>(mode: IDBTransactionMode, run: (tx: IDBTransaction, result: (value: T) => void) => void): Promise<T> {
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(['projects', 'settings'], mode)
+      const tx = db.transaction(['projects', 'settings','recovery'], mode)
       let value: T
       tx.oncomplete = () => resolve(value)
       tx.onabort = () => reject(tx.error ?? Error('Project transaction aborted'))
@@ -31,6 +32,11 @@ export async function openProjectRepository(factory: IDBFactory): Promise<Projec
     request.onsuccess = () => result(request.result)
   })
   return {
+    recovery:{
+      list:accountId=>transaction<{key:string;project:LocalProject}[]>('readonly',(tx,result)=>{const request=tx.objectStore('recovery').getAll();request.onsuccess=()=>result(request.result.filter(entry=>entry.project?.accountId===accountId))}),
+      write:(key,project)=>{validateLocalProject(project);return transaction<void>('readwrite',(tx,result)=>{tx.objectStore('recovery').put({key,project});result(undefined)})},
+      remove:(key,writeId)=>transaction<void>('readwrite',(tx,result)=>{const store=tx.objectStore('recovery'),request=store.get(key);request.onsuccess=()=>{if(request.result?.project.writeId===writeId)store.delete(key);result(undefined)}}),
+    },
     get,
     active: accountId => transaction<LocalProject | undefined>('readonly', (tx, result) => {
       const setting = tx.objectStore('settings').get(scope(accountId))

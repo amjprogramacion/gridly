@@ -13,6 +13,14 @@ export interface SyncLocal {
 }
 export type SyncStatus = 'local' | 'pending' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'error'
 class InvalidDocument extends Error {}
+export function syncFailure(error:unknown):{status:SyncStatus;message:string}{
+ if(error instanceof InvalidDocument)return {status:'error',message:'La versión recibida no es un proyecto válido. Actualiza Gridly en ambos equipos. Tu copia local se conserva.'}
+ const code=error&&typeof error==='object'&&'code' in error?String(error.code):''
+ if(code==='22023')return {status:'error',message:'El servidor rechazó el proyecto. Actualiza Gridly y vuelve a sincronizar. Tu copia local se conserva.'}
+ if(code==='42501'||code==='PGRST301')return {status:'error',message:'No tienes acceso al proyecto o tu sesión ha caducado. Vuelve a iniciar sesión; tu copia local se conserva.'}
+ if(code&&code!=='PGRST000'&&code!=='PGRST001'&&code!=='PGRST002')return {status:'error',message:'El servidor no pudo guardar el proyecto. Vuelve a sincronizar; tus cambios se conservan en este dispositivo.'}
+ return {status:'offline',message:'No se pudo conectar con la nube. Tus cambios permanecen guardados en este dispositivo.'}
+}
 
 // Only one snapshot is in flight. Its operation survives reload/network failure.
 export function createCloudSync(local: SyncLocal, cloud: CloudTransport, options: {
@@ -92,9 +100,7 @@ export function createCloudSync(local: SyncLocal, cloud: CloudTransport, options
     const generation = epoch
     running = run().catch(error => {
       if (generation !== epoch) return
-      options.status(error instanceof InvalidDocument ? 'error' : 'offline', error instanceof InvalidDocument
-        ? 'La versión recibida no es un proyecto válido. Tu copia local se conserva.'
-        : 'No se pudo sincronizar. Tus cambios permanecen guardados en este dispositivo.')
+      const failure=syncFailure(error);options.status(failure.status,failure.message)
     }).finally(() => { running = undefined })
     return running
   }
