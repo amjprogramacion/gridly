@@ -10,10 +10,11 @@ export function objectBounds(object:Box){
  return {min:{x:object.x-width/2,y:object.y,z:object.z-depth/2},max:{x:object.x+width/2,y:object.y+height,z:object.z+depth/2}}
 }
 export function participates(object:Box,room:Room|null){
- return (isStructural(object)||object.collisions!==false)&&(!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])
+ return !object.hidden&&(isStructural(object)||object.collisions!==false)&&(!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])
 }
 export function collisionPeers(object:Box,objects:Box[],room:Room|null,enabled:boolean){
- const peers=objects.filter(other=>other.id!==object.id&&
+ if(object.hidden)return []
+ const peers=objects.filter(other=>!other.hidden&&other.id!==object.id&&
   ((isStructural(object)||isStructural(other))&&!((object.type==='beam'||object.type==='column')&&(other.type==='beam'||other.type==='column'))||!isStructural(object)&&!isStructural(other)&&enabled&&object.collisions!==false&&other.collisions!==false)&&
   (!(object.type==='door'||object.type==='window')||!room||!!room.walls[object.wall!])&&
   (!(other.type==='door'||other.type==='window')||!room||!!room.walls[other.wall!]))

@@ -10,7 +10,7 @@ import { intersectsRoom, limitMovement, fitRoomObject } from './collisions.ts'
 import { snapPosition, touchingWalls, type Axis } from './snapping.ts'
 export type ObjectKind = 'box' | 'cylinder' | 'door' | 'window' | 'column' | 'beam' | 'group'
 export type WallSide = 'north' | 'south' | 'east' | 'west'
-export interface Box { texture?:string; atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
+export interface Box { hidden?:boolean; texture?:string; atomic?:boolean; children?:Box[]; groupSize?:{width:number;height:number;depth:number}; id:string; name:string; type?:ObjectKind; wall?:WallSide; offset?:number; x:number; y:number; z:number; width:number; height:number; depth:number; color:string; rotationX?:number; rotationY?:number; rotationZ?:number; collisions?:boolean }
 export interface CustomObject { id:string; name:string; object:Box }
 export const customEditing=ref(false)
 export const customEditingId=ref('')
@@ -28,7 +28,7 @@ export const collisionSelection=computed(()=>{
 })
 function collisionObjects(objects:Box[]=state.objects){return objects.map(object=>({...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}))}
 function collidable(object:Box){return {...object,collisions:isStructural(object)|| (object.collisions??state.collisions)}}
-export const selection=computed(()=>state.objects.filter(o=>state.selection.includes(o.id)||o.id===state.selected))
+export const selection=computed(()=>state.objects.filter(o=>!o.hidden&&(state.selection.includes(o.id)||o.id===state.selected)))
 export function selectObject(id:string,multiple=false){
  if(!multiple||id==='room'||!id){state.selection=[];state.selected=id;return}
  const ids=selection.value.map(o=>o.id)
@@ -74,7 +74,7 @@ export function setObjectTexture(id:string,texture?:string){
 export function isOpening(o:Box){return o.type==='door'||o.type==='window'}
 export function wallLength(room:Room,side:WallSide){return side==='north'||side==='south'?room.width:room.depth}
 export function normalizeOpening(o:Box,room:Room){if(!isOpening(o))return;const side=o.wall??'north';o.wall=side;const length=wallLength(room,side);o.width=Math.min(o.width,length);o.height=Math.min(o.height,room.height);o.y=o.type==='door'?0:Math.min(Math.max(0,o.y),room.height-o.height);o.offset=Math.min(Math.max(o.width/2,o.offset??length/2),length-o.width/2);const along=o.offset-length/2;if(side==='north'||side==='south'){o.x=along;o.z=(side==='north'?-1:1)*(room.depth+room.thickness)/2}else{o.z=along;o.x=(side==='west'?-1:1)*(room.width+room.thickness)/2}}
-function prepareRoom(room:Room,objects:Box[]){for(const o of objects){normalizeOpening(o,room);if(!fitRoomObject(o,room))return false}return !hasObjectCollisions(collisionObjects(objects),room,true)}
+function prepareRoom(room:Room,objects:Box[]){for(const o of objects){normalizeOpening(o,room);if(!o.hidden&&!fitRoomObject(o,room))return false}return !hasObjectCollisions(collisionObjects(objects),room,true)}
 function applyMovement(o:Box,position:Pick<Box,'x'|'y'|'z'>){const result=limitMovement(collidable(o),state.room,position,collisionObjects(),true);Object.assign(o,result.position);state.collisionBlocked=result.blocked}
 const past:string[]=[],future:string[]=[]
 export const history=reactive({undo:0,redo:0})
@@ -267,6 +267,12 @@ export function moveSelected(x:number,y:number,z:number,axes:Axis[]=['x','y','z'
  if(isOpening(o)&&state.room){const length=wallLength(state.room,o.wall!);const candidate={...o,offset:(o.wall==='north'||o.wall==='south'?position.x:position.z)+length/2,y:position.y};normalizeOpening(candidate,state.room);moveOpening(o,candidate)}else applyMovement(o,position)
 }
 export function editProjectName(value:string){const name=value.trim();if(!name||name.length>120||name===state.projectName)return;checkpoint();state.projectName=name}
+export function toggleObjectVisibility(id:string){
+ const object=state.objects.find(o=>o.id===id)
+ if(!object||customEditing.value||!canEditAppearance(object))return
+ if(object.hidden){const candidate={...object,hidden:false};if(intersectsRoom(candidate,state.room)||intersectsObjects(collidable(candidate),collisionObjects(),state.room,true)){state.error='No se puede mostrar: su espacio está ocupado. Mueve los elementos que se solapan.';return}}
+ checkpoint();object.hidden=!object.hidden;if(object.hidden){const ids=selection.value.map(o=>o.id);state.selection=ids;state.selected=ids.at(-1)??''}state.error=''
+}
 export function renameObject(id:string,value:string){const object=state.objects.find(o=>o.id===id),name=value.trim();if(!object||!name||name.length>120||name===object.name)return;checkpoint();object.name=name}
 export function reorderObjects(ids:string[]){
  if(new Set(ids).size!==ids.length)return
@@ -287,9 +293,9 @@ export function parseProject(value:string):{room:Room|null;objects:Box[];collisi
  if(data.structuralColor!==undefined&&(typeof data.structuralColor!=='string'||!/^#[0-9a-f]{6}$/i.test(data.structuralColor)))throw Error()
  const structuralColor=data.structuralColor??WALL_COLOR
  const collisions=data.collisions??false
- const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.texture!==undefined&&(!validTexture(o.texture)||!['box','cylinder'].includes(o.type??'box')))throw Error();if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
+ const all=validateGroups(data.objects);const ids=new Set(['room']);for(const o of all){if(o.hidden!==undefined&&(typeof o.hidden!=='boolean'||!canEditAppearance(o)))throw Error();if(o.texture!==undefined&&(!validTexture(o.texture)||!['box','cylinder'].includes(o.type??'box')))throw Error();if(o.collisions!==undefined&&typeof o.collisions!=='boolean')throw Error();if(typeof o.id!=='string'||ids.has(o.id)||typeof o.name!=='string'||!/^#[0-9a-f]{6}$/i.test(o.color))throw Error();ids.add(o.id);for(const key of ['x','y','z','width','height','depth'] as const)if(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>1e7)throw Error();if(o.y<0||Math.min(o.width,o.height,o.depth)<0.001)throw Error();for(const key of ['rotationX','rotationY','rotationZ'] as const)if(o[key]!==undefined&&(typeof o[key]!=='number'||!Number.isFinite(o[key])||Math.abs(o[key])>36000))throw Error();if(isOpening(o)&&[o.rotationX,o.rotationY,o.rotationZ].some(angle=>angle!==undefined&&angle!==0))throw Error();if(o.type!==undefined&&!Object.keys(labels).includes(o.type))throw Error();if(isOpening(o)&&(!['north','south','east','west'].includes(o.wall!)||typeof o.offset!=='number'||!Number.isFinite(o.offset)))throw Error()}
  const room=data.version===1?null:data.room;if(room!==null){if(room?.floorColor!==undefined&&(typeof room.floorColor!=='string'||!/^#[0-9a-f]{6}$/i.test(room.floorColor)))throw Error();if(room?.baseboard!==undefined&&typeof room.baseboard!=='boolean')throw Error();for(const key of ['width','depth','height','thickness'])if(typeof room?.[key]!=='number'||!Number.isFinite(room[key])||room[key]<1||room[key]>100000)throw Error();for(const key of ['north','south','east','west'])if(typeof room.walls?.[key]!=='boolean')throw Error()}
- if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>intersectsRoom(o,room)))throw Error('collision')}
+ if(!room&&data.objects.some(isOpening))throw Error();if(room){data.objects.forEach((o:Box)=>normalizeOpening(o,room));if(data.objects.some((o:Box)=>!o.hidden&&intersectsRoom(o,room)))throw Error('collision')}
  // Versions 1–4 used the general switch as a gate; preserve their effective settings.
  for(const object of all){if(isStructural(object)&&object.type!=='group')object.color=structuralColor;object.collisions=isStructural(object)|| (data.version<5?collisions&&object.collisions!==false:object.collisions??collisions)}
  if(hasObjectCollisions(data.objects,room,true))throw Error('objects')

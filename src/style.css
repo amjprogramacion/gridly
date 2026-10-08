@@ -125,3 +125,8 @@ header button,.create-custom-button,.custom-library-heading button{display:inlin
 .object-list-entry.drop-before::before,.object-list-entry.drop-after::after{content:'';position:absolute;left:0;right:0;height:3px;background:#70d0dc;border-radius:3px;box-shadow:0 0 7px #70d0dc66;pointer-events:none}
 .object-list-entry.drop-before::before{top:-4px}
 .object-list-entry.drop-after::after{bottom:-4px}
+
+.object-list-entry .object-visibility{flex:0 0 24px;width:24px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#96aabd}
+.object-list-entry .object-visibility .app-icon{width:16px;min-width:16px;height:16px;flex:0 0 16px}
+.object-list-entry .object-visibility:hover{color:#dce5ed}
+.object-list-entry.hidden .object-row{opacity:.45}
